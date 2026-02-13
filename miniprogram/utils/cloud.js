@@ -20,7 +20,7 @@ const callMpApi = async (action, data) => {
   const base = getAppApiBase()
   if (base) {
     const app = getApp && getApp()
-    const userId = app && app.globalData ? String(app.globalData.openid || '').trim() : ''
+    const userId = app && app.globalData ? String(app.globalData.userId || app.globalData.openid || '').trim() : ''
     const url = `${base.replace(/\/+$/, '')}/api/mp/rpc`
     const res = await requestJson(url, { action, data: { ...(data || {}), userId } })
     const body = (res && res.data) || null

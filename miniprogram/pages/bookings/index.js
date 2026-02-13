@@ -22,12 +22,12 @@ Page({
         }))
         this.setData({ items: mapped })
       })
-      .catch(() => {
-        wx.showToast({ title: '加载失败', icon: 'none' })
+      .catch((err) => {
+        const msg = err && err.message ? err.message : '加载失败'
+        wx.showToast({ title: msg, icon: 'none' })
       })
       .finally(() => {
         this.setData({ loading: false })
       })
   }
 })
-

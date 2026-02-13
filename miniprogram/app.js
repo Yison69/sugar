@@ -1,11 +1,23 @@
 App({
   globalData: {
     envId: 'cloud1-7guv7m7n94f2b2e0',
-    apiBase: 'sugar-dusky.vercel.app',
+    apiBase: 'https://sugar-dusky.vercel.app',
+    userId: '',
     openid: '',
     nickname: ''
   },
   onLaunch() {
+    if (this.globalData.apiBase) {
+      try {
+        const cached = String(wx.getStorageSync('userId') || '').trim()
+        const userId = cached || `u_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+        if (!cached) wx.setStorageSync('userId', userId)
+        this.globalData.userId = userId
+        this.globalData.openid = userId
+      } catch (_) {}
+      return
+    }
+
     if (!wx.cloud) {
       wx.showModal({
         title: '提示',

@@ -105,9 +105,10 @@ Page({
             this.setData({ items: patched, leftItems: cols.left, rightItems: cols.right })
           })
       })
-      .catch(() => {
+      .catch((err) => {
         if (this._loadSeq !== seq) return
-        wx.showToast({ title: '加载失败', icon: 'none' })
+        const msg = err && err.message ? err.message : '加载失败'
+        wx.showToast({ title: msg, icon: 'none' })
       })
       .finally(() => {
         if (this._loadSeq !== seq) return
