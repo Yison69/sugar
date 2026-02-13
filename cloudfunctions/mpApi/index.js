@@ -2,179 +2,163 @@ const cloud = require('wx-server-sdk')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
-const db = cloud.database()
-const _ = db.command
+try {
+  if (!globalThis.fetch) globalThis.fetch = require('undici').fetch
+} catch (_) {}
+
+const { createClient } = require('@supabase/supabase-js')
+
+const requiredEnv = (name) => {
+  const v = (process.env[name] || '').trim()
+  if (!v) throw new Error(`Missing env: ${name}`)
+  return v
+}
+
+const getSb = () => {
+  const url = requiredEnv('SUPABASE_URL')
+  const key = requiredEnv('SUPABASE_SERVICE_ROLE_KEY')
+  return createClient(url, key, { auth: { persistSession: false } })
+}
 
 const ok = (data) => data
 
-const now = () => Date.now()
+const nowIso = () => new Date().toISOString()
 
-const isCloudFileId = (v) => typeof v === 'string' && v.startsWith('cloud://')
-
-async function resolveCloudFileIds(fileIds) {
-  const uniq = Array.from(new Set((fileIds || []).filter(isCloudFileId)))
-  if (!uniq.length) return new Map()
-  const res = await cloud.getTempFileURL({ fileList: uniq }).catch(() => null)
-  const list = (res && res.fileList) || []
-  const m = new Map()
-  for (const it of list) {
-    if (it && it.fileID && it.tempFileURL) m.set(it.fileID, it.tempFileURL)
-  }
-  return m
-}
-
-function replaceWithTempUrl(v, map) {
-  if (!isCloudFileId(v)) return v
-  return map.get(v) || v
-}
-
-async function getOpenid() {
+const getOpenid = () => {
   const ctx = cloud.getWXContext()
   return ctx.OPENID
 }
 
 async function listItems({ category, type }) {
-  const openid = await getOpenid()
-
-  const workWhere = { category, isPublished: true }
-  const pkgWhere = { category, isPublished: true }
+  const openid = getOpenid()
+  const sb = getSb()
 
   const [worksRes, pkgsRes] = await Promise.all([
-    type === 'package' ? Promise.resolve({ data: [] }) : db.collection('works').where(workWhere).orderBy('createdAt', 'desc').limit(50).get(),
-    type === 'work' ? Promise.resolve({ data: [] }) : db.collection('packages').where(pkgWhere).orderBy('createdAt', 'desc').limit(50).get()
+    type === 'package'
+      ? Promise.resolve({ data: [] })
+      : sb.from('works').select('*').eq('category', category).eq('is_published', true).order('created_at', { ascending: false }).limit(50),
+    type === 'work'
+      ? Promise.resolve({ data: [] })
+      : sb
+          .from('packages')
+          .select('*')
+          .eq('category', category)
+          .eq('is_published', true)
+          .order('created_at', { ascending: false })
+          .limit(50)
   ])
 
+  if ((worksRes && worksRes.error) || (pkgsRes && pkgsRes.error)) throw new Error('加载失败')
+
   const works = (worksRes.data || []).map((d) => ({
-    id: d._id,
+    id: d.id,
     type: 'work',
     title: d.title,
     category: d.category,
-    coverUrl: d.coverUrl,
-    likeCount: d.likeCount || 0
+    coverUrl: d.cover_url || '',
+    likeCount: Number(d.like_count || 0)
   }))
   const pkgs = (pkgsRes.data || []).map((d) => ({
-    id: d._id,
+    id: d.id,
     type: 'package',
     title: d.title,
     category: d.category,
-    coverUrl: d.coverUrl,
-    basePrice: d.basePrice || 0,
-    likeCount: d.likeCount || 0
+    coverUrl: d.cover_url || '',
+    basePrice: Number(d.base_price || 0),
+    likeCount: Number(d.like_count || 0)
   }))
 
   const items = [...works, ...pkgs].sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0))
-
-  const coverMap = await resolveCloudFileIds(items.map((x) => x.coverUrl))
-  const itemsWithMedia = items.map((x) => ({ ...x, coverUrl: replaceWithTempUrl(x.coverUrl, coverMap) }))
   const ids = items.map((x) => x.id)
-  if (!openid || !ids.length) {
-    return ok({ items: itemsWithMedia.map((x) => ({ ...x, isLiked: false })) })
-  }
+  if (!openid || !ids.length) return ok({ items: items.map((x) => ({ ...x, isLiked: false })) })
 
-  const likesRes = await db
-    .collection('likes')
-    .where({ userOpenid: openid, targetId: _.in(ids) })
-    .limit(200)
-    .get()
-
-  const likedSet = new Set((likesRes.data || []).map((l) => `${l.targetType}:${l.targetId}`))
-  return ok({
-    items: itemsWithMedia.map((x) => ({
-      ...x,
-      isLiked: likedSet.has(`${x.type}:${x.id}`)
-    }))
-  })
+  const likesRes = await sb.from('likes').select('target_type, target_id').eq('user_id', openid).in('target_id', ids)
+  if (likesRes.error) return ok({ items: items.map((x) => ({ ...x, isLiked: false })) })
+  const likedSet = new Set((likesRes.data || []).map((l) => `${l.target_type}:${l.target_id}`))
+  return ok({ items: items.map((x) => ({ ...x, isLiked: likedSet.has(`${x.type}:${x.id}`) })) })
 }
 
 async function getItemDetail({ id, type }) {
-  const openid = await getOpenid()
-  const col = type === 'package' ? 'packages' : 'works'
-  const docRes = await db.collection(col).doc(id).get().catch(() => null)
+  const openid = getOpenid()
+  const sb = getSb()
+  const table = type === 'package' ? 'packages' : 'works'
+  const docRes = await sb.from(table).select('*').eq('id', id).eq('is_published', true).single()
   const d = docRes && docRes.data
-  if (!d || !d.isPublished) return ok({ item: null })
+  if (!d) return ok({ item: null })
 
-  const likeRes = openid
-    ? await db
-        .collection('likes')
-        .where({ userOpenid: openid, targetType: type, targetId: id })
-        .limit(1)
-        .get()
-    : { data: [] }
+  let isLiked = false
+  if (openid) {
+    const likeRes = await sb
+      .from('likes')
+      .select('id')
+      .eq('user_id', openid)
+      .eq('target_type', type)
+      .eq('target_id', id)
+      .limit(1)
+    isLiked = !!((likeRes.data || []).length)
+  }
 
-  const isLiked = !!((likeRes.data || []).length)
+  const mediaUrls = Array.isArray(d.image_urls) && d.image_urls.length ? d.image_urls : [d.cover_url].filter(Boolean)
 
   const base = {
-    id: d._id,
+    id: d.id,
     type,
     title: d.title,
     category: d.category,
-    coverUrl: d.coverUrl,
-    mediaUrls: d.imageUrls && d.imageUrls.length ? d.imageUrls : [d.coverUrl].filter(Boolean),
+    coverUrl: d.cover_url || '',
+    mediaUrls,
     description: d.description || '',
-    likeCount: d.likeCount || 0,
+    likeCount: Number(d.like_count || 0),
     isLiked
-  }
-
-  const mediaMap = await resolveCloudFileIds([base.coverUrl, ...(base.mediaUrls || [])])
-  const baseWithMedia = {
-    ...base,
-    coverUrl: replaceWithTempUrl(base.coverUrl, mediaMap),
-    mediaUrls: (base.mediaUrls || []).map((u) => replaceWithTempUrl(u, mediaMap))
   }
 
   if (type === 'package') {
     return ok({
       item: {
-        ...baseWithMedia,
-        basePrice: d.basePrice || 0,
+        ...base,
+        basePrice: Number(d.base_price || 0),
         deliverables: d.deliverables || '',
-        optionGroups: d.optionGroups || []
+        optionGroups: d.option_groups || []
       }
     })
   }
 
-  return ok({ item: baseWithMedia })
+  return ok({ item: base })
 }
 
 async function toggleLike({ targetId, targetType }) {
-  const openid = await getOpenid()
+  const openid = getOpenid()
   if (!openid) throw new Error('未登录')
   if (!targetId || (targetType !== 'work' && targetType !== 'package')) throw new Error('参数错误')
 
-  const likesCol = db.collection('likes')
-  const found = await likesCol.where({ userOpenid: openid, targetId, targetType }).limit(1).get()
+  const sb = getSb()
+  const found = await sb
+    .from('likes')
+    .select('id')
+    .eq('user_id', openid)
+    .eq('target_type', targetType)
+    .eq('target_id', targetId)
+    .limit(1)
   const exists = (found.data || [])[0]
 
-  const targetCol = db.collection(targetType === 'work' ? 'works' : 'packages')
-
+  const table = targetType === 'package' ? 'packages' : 'works'
   if (exists) {
-    await likesCol.doc(exists._id).remove()
-    await targetCol.doc(targetId).update({ data: { likeCount: _.inc(-1), updatedAt: now() } }).catch(() => {})
-    const latest = await targetCol.doc(targetId).get().catch(() => null)
-    const likeCount = latest && latest.data ? latest.data.likeCount || 0 : 0
-    if (likeCount < 0) {
-      await targetCol.doc(targetId).update({ data: { likeCount: 0, updatedAt: now() } }).catch(() => {})
-      return ok({ liked: false, likeCount: 0 })
-    }
-    return ok({ liked: false, likeCount })
+    await sb.from('likes').delete().eq('id', exists.id)
+    const current = await sb.from(table).select('like_count').eq('id', targetId).single()
+    const next = Math.max(0, Number((current.data && current.data.like_count) || 0) - 1)
+    await sb.from(table).update({ like_count: next, updated_at: nowIso() }).eq('id', targetId)
+    return ok({ liked: false, likeCount: next })
   }
 
-  await likesCol.add({
-    data: {
-      userOpenid: openid,
-      targetType,
-      targetId,
-      createdAt: now()
-    }
-  })
-  await targetCol.doc(targetId).update({ data: { likeCount: _.inc(1), updatedAt: now() } }).catch(() => {})
-  const latest = await targetCol.doc(targetId).get().catch(() => null)
-  const likeCount = latest && latest.data ? latest.data.likeCount || 0 : 0
-  return ok({ liked: true, likeCount: Math.max(0, likeCount) })
+  await sb.from('likes').insert({ user_id: openid, target_type: targetType, target_id: targetId })
+  const current = await sb.from(table).select('like_count').eq('id', targetId).single()
+  const next = Math.max(0, Number((current.data && current.data.like_count) || 0) + 1)
+  await sb.from(table).update({ like_count: next, updated_at: nowIso() }).eq('id', targetId)
+  return ok({ liked: true, likeCount: next })
 }
 
 async function createBooking(payload) {
-  const openid = await getOpenid()
+  const openid = getOpenid()
   if (!openid) throw new Error('未登录')
 
   const required = ['itemType', 'itemId', 'itemTitleSnapshot', 'contactName', 'contactPhone', 'contactWechat', 'shootingType', 'scheduledAt']
@@ -182,24 +166,26 @@ async function createBooking(payload) {
     if (!payload || !payload[k]) throw new Error('请完善预约信息')
   }
 
+  const sb = getSb()
+
   let computedSelected = payload.selectedOptionsSnapshot || null
   let computedPrice = payload.priceSnapshot || null
 
   if (payload.itemType === 'package') {
-    const pkgRes = await db.collection('packages').doc(payload.itemId).get().catch(() => null)
+    const pkgRes = await sb.from('packages').select('*').eq('id', payload.itemId).eq('is_published', true).single()
     const pkg = pkgRes && pkgRes.data
-    if (!pkg || !pkg.isPublished) throw new Error('套餐不存在或已下架')
+    if (!pkg) throw new Error('套餐不存在或已下架')
 
-    const optionGroups = pkg.optionGroups || []
+    const optionGroups = pkg.option_groups || []
     const selected = computedSelected || {}
     for (const g of optionGroups) {
-      if (!g.required) continue
+      if (!g || !g.required) continue
       const v = selected[g.id]
       const okSel = Array.isArray(v) ? v.length > 0 : !!v
       if (!okSel) throw new Error(`请完成必选项：${g.name}`)
     }
 
-    const base = Number(pkg.basePrice || 0)
+    const base = Number(pkg.base_price || 0)
     let delta = 0
     const lines = []
     for (const g of optionGroups) {
@@ -217,52 +203,53 @@ async function createBooking(payload) {
     computedPrice = { base, delta, total: base + delta, lines }
   }
 
-  const doc = {
-    userOpenid: openid,
-    itemType: payload.itemType,
-    itemId: payload.itemId,
-    itemTitleSnapshot: payload.itemTitleSnapshot,
-    selectedOptionsSnapshot: computedSelected,
-    priceSnapshot: computedPrice,
-    contactName: payload.contactName,
-    contactPhone: payload.contactPhone,
-    contactWechat: payload.contactWechat,
-    shootingType: payload.shootingType,
-    scheduledAt: payload.scheduledAt,
+  const row = {
+    user_openid: openid,
+    item_type: payload.itemType,
+    item_id: payload.itemId,
+    item_title_snapshot: payload.itemTitleSnapshot,
+    selected_options_snapshot: computedSelected,
+    price_snapshot: computedPrice,
+    contact_name: payload.contactName,
+    contact_phone: payload.contactPhone,
+    contact_wechat: payload.contactWechat,
+    shooting_type: payload.shootingType,
+    scheduled_at: payload.scheduledAt,
     remark: payload.remark || '',
     status: '待确认',
-    createdAt: now(),
-    updatedAt: now()
+    created_at: nowIso(),
+    updated_at: nowIso()
   }
-  const res = await db.collection('bookings').add({ data: doc })
-  return ok({ id: res._id })
+
+  const ins = await sb.from('bookings').insert(row).select('id').single()
+  if (ins.error || !ins.data) throw new Error('提交失败')
+  return ok({ id: ins.data.id })
 }
 
 async function getMyBookings() {
-  const openid = await getOpenid()
+  const openid = getOpenid()
   if (!openid) return ok({ items: [] })
-  const res = await db.collection('bookings').where({ userOpenid: openid }).orderBy('createdAt', 'desc').limit(50).get()
+  const sb = getSb()
+  const res = await sb.from('bookings').select('*').eq('user_openid', openid).order('created_at', { ascending: false }).limit(50)
+  if (res.error) return ok({ items: [] })
   const items = (res.data || []).map((d) => ({
-    id: d._id,
-    itemType: d.itemType,
-    itemId: d.itemId,
-    itemTitleSnapshot: d.itemTitleSnapshot,
-    shootingType: d.shootingType,
-    scheduledAt: d.scheduledAt,
+    id: d.id,
+    itemType: d.item_type,
+    itemId: d.item_id,
+    itemTitleSnapshot: d.item_title_snapshot,
+    shootingType: d.shooting_type,
+    scheduledAt: d.scheduled_at,
     status: d.status,
-    createdAt: d.createdAt
+    createdAt: d.created_at ? new Date(d.created_at).getTime() : Date.now()
   }))
   return ok({ items })
 }
 
 async function getContactConfig() {
-  const res = await db.collection('config').doc('contact').get().catch(() => null)
-  const d = res && res.data
-  const m = await resolveCloudFileIds([d && d.wechatQrUrl])
-  return ok({
-    wechatText: (d && d.wechatText) || '',
-    wechatQrUrl: replaceWithTempUrl((d && d.wechatQrUrl) || '', m)
-  })
+  const sb = getSb()
+  const res = await sb.from('app_config').select('value').eq('key', 'contact').single()
+  const v = (res && res.data && res.data.value) || {}
+  return ok({ wechatText: String(v.wechatText || ''), wechatQrUrl: String(v.wechatQrUrl || '') })
 }
 
 exports.main = async (event) => {

@@ -7,17 +7,6 @@ App({
     nickname: ''
   },
   onLaunch() {
-    if (this.globalData.apiBase) {
-      try {
-        const cached = String(wx.getStorageSync('userId') || '').trim()
-        const userId = cached || `u_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-        if (!cached) wx.setStorageSync('userId', userId)
-        this.globalData.userId = userId
-        this.globalData.openid = userId
-      } catch (_) {}
-      return
-    }
-
     if (!wx.cloud) {
       wx.showModal({
         title: '提示',
@@ -26,6 +15,11 @@ App({
       })
       return
     }
+
+    try {
+      const cached = String(wx.getStorageSync('userId') || '').trim()
+      if (cached) this.globalData.userId = cached
+    } catch (_) {}
 
     wx.cloud.init({
       env: this.globalData.envId || undefined,
@@ -39,6 +33,12 @@ App({
       .then((res) => {
         const { openid } = res.result || {}
         this.globalData.openid = openid || ''
+        if (openid) {
+          this.globalData.userId = openid
+          try {
+            wx.setStorageSync('userId', openid)
+          } catch (_) {}
+        }
       })
       .catch(() => {})
   }

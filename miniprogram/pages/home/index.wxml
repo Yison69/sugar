@@ -4,7 +4,7 @@
       <view class="panelTitle">分类</view>
       <scroll-view class="catScroll" scroll-x="true" show-scrollbar="false">
         <view class="catRow">
-          <block wx:for="{{categories}}" wx:key="{{item}}">
+          <block wx:for="{{categories}}" wx:key="item">
             <view class="chip {{currentCategory===item ? 'chipActive' : ''}}" bindtap="onSelectCategory" data-value="{{item}}">
               {{item}}
             </view>
@@ -34,12 +34,12 @@
 
     <view wx:if="{{loading && leftItems.length===0 && rightItems.length===0}}" class="waterfall">
       <view class="col">
-        <block wx:for="{{skLeft}}" wx:key="{{item.id}}">
+        <block wx:for="{{skLeft}}" wx:key="id">
           <view class="skCard" style="height: {{item._h}}rpx;"></view>
         </block>
       </view>
       <view class="col">
-        <block wx:for="{{skRight}}" wx:key="{{item.id}}">
+        <block wx:for="{{skRight}}" wx:key="id">
           <view class="skCard" style="height: {{item._h}}rpx;"></view>
         </block>
       </view>
@@ -47,7 +47,7 @@
 
     <view wx:if="{{leftItems.length>0 || rightItems.length>0}}" class="waterfall">
       <view class="col">
-        <block wx:for="{{leftItems}}" wx:key="{{item.id}}">
+        <block wx:for="{{leftItems}}" wx:key="id">
           <view class="itemCard" bindtap="openDetail" data-id="{{item.id}}" data-type="{{item.type}}">
             <view class="media" style="height: {{item._h}}rpx;">
               <image class="mediaImg" mode="aspectFill" src="{{item.coverUrl}}" />
@@ -69,7 +69,7 @@
         </block>
       </view>
       <view class="col">
-        <block wx:for="{{rightItems}}" wx:key="{{item.id}}">
+        <block wx:for="{{rightItems}}" wx:key="id">
           <view class="itemCard" bindtap="openDetail" data-id="{{item.id}}" data-type="{{item.type}}">
             <view class="media" style="height: {{item._h}}rpx;">
               <image class="mediaImg" mode="aspectFill" src="{{item.coverUrl}}" />
