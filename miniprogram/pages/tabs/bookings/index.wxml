@@ -1,0 +1,23 @@
+<view class="page">
+  <view class="content">
+    <view wx:if="{{loading}}" class="empty">
+      <view class="emptyTitle">加载中…</view>
+    </view>
+
+    <view wx:if="{{!loading && items.length===0}}" class="empty">
+      <view class="emptyTitle">暂无预约</view>
+      <view class="emptyDesc">在套餐详情页填写信息即可提交预约</view>
+    </view>
+
+    <block wx:if="{{items.length>0}}" wx:for="{{items}}" wx:key="{{item.id}}">
+      <view class="card">
+        <view class="row">
+          <view class="title">{{item.itemTitleSnapshot}}</view>
+          <view class="status">{{item.status}}</view>
+        </view>
+        <view class="sub">类型：{{item.shootingType || '-'}} · 预约时间：{{item.scheduledAt || '-'}} </view>
+        <view class="meta">创建：{{item.createdAtText}}</view>
+      </view>
+    </block>
+  </view>
+</view>

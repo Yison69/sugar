@@ -1,0 +1,43 @@
+{
+  "pages": [
+    "pages/tabs/home/index",
+    "pages/tabs/works/index",
+    "pages/tabs/bookings/index",
+    "pages/tabs/me/index",
+    "pages/home/index",
+    "pages/detail/index",
+    "pages/bookings/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "摄影服务",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f7f8fa"
+  },
+  "tabBar": {
+    "custom": true,
+    "backgroundColor": "#ffffff",
+    "color": "#6b7280",
+    "selectedColor": "#111827",
+    "list": [
+      {
+        "pagePath": "pages/tabs/home/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/tabs/works/index",
+        "text": "作品"
+      },
+      {
+        "pagePath": "pages/tabs/bookings/index",
+        "text": "预约"
+      },
+      {
+        "pagePath": "pages/tabs/me/index",
+        "text": "我的"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

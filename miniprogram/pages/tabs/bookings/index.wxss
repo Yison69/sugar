@@ -1,0 +1,67 @@
+.page {
+  min-height: 100vh;
+  background: #ffffff;
+}
+
+.content {
+  padding: 28rpx;
+  padding-bottom: calc(28rpx + 108rpx + env(safe-area-inset-bottom));
+}
+
+.empty {
+  padding: 140rpx 0;
+  text-align: center;
+}
+
+.emptyTitle {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #111827;
+}
+
+.emptyDesc {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #6b7280;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 18rpx;
+  border: 1rpx solid rgba(17, 24, 39, 0.08);
+  padding: 22rpx;
+  margin-bottom: 18rpx;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #111827;
+  flex: 1;
+  margin-right: 14rpx;
+}
+
+.status {
+  font-size: 24rpx;
+  color: #111827;
+  opacity: 0.7;
+}
+
+.sub {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #374151;
+}
+
+.meta {
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  color: #6b7280;
+}
+

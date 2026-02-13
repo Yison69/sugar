@@ -1,0 +1,14 @@
+<view class="page">
+  <view class="stack">
+    <block wx:for="{{categories}}" wx:key="{{item}}">
+      <view class="card" bindtap="openCategory" data-category="{{item}}">
+        <view class="cardBg" />
+        <view class="cardContent">
+          <view class="title">{{item}}</view>
+          <view class="sub">查看套餐</view>
+        </view>
+        <view class="chev">›</view>
+      </view>
+    </block>
+  </view>
+</view>

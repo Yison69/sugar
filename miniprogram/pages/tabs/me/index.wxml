@@ -1,0 +1,70 @@
+<view class="page">
+  <view class="hero">
+    <view class="heroBg" />
+    <view class="heroInner">
+      <view class="avatar">S</view>
+      <view class="heroTitle" bindtap="onLogin">登录/注册</view>
+      <view class="heroSub">生活需要仪式感</view>
+    </view>
+  </view>
+
+  <view class="content">
+    <view class="stats">
+      <view class="stat">
+        <view class="num">0</view>
+        <view class="label">优惠券</view>
+      </view>
+      <view class="stat">
+        <view class="num">0</view>
+        <view class="label">纪念值</view>
+      </view>
+      <view class="stat">
+        <view class="num">0</view>
+        <view class="label">勋章</view>
+      </view>
+      <view class="stat">
+        <view class="num">0</view>
+        <view class="label">礼品卡</view>
+      </view>
+    </view>
+
+    <view class="grid2">
+      <view class="tile" bindtap="onCommunity">
+        <view class="tileTitle">摄影圈</view>
+        <view class="tileSub">进入社区</view>
+        <view class="pill">社区</view>
+      </view>
+      <view class="tile" bindtap="onContact">
+        <view class="tileTitle">门店咨询</view>
+        <view class="tileSub">加入社群</view>
+        <view class="pill">福利</view>
+      </view>
+    </view>
+
+    <view class="actions">
+      <view class="action" bindtap="goBookings">
+        <view class="ico">⎘</view>
+        <view class="txt">我的预约</view>
+      </view>
+      <view class="action" bindtap="onCrop">
+        <view class="ico">▢</view>
+        <view class="txt">照片裁剪</view>
+      </view>
+      <view class="action" bindtap="onMore">
+        <view class="ico">…</view>
+        <view class="txt">更多</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="floating">
+    <view class="fab" bindtap="onMemberCode">
+      <view class="fabIco">⌁</view>
+      <view class="fabTxt">会员码</view>
+    </view>
+    <view class="fab" bindtap="onContact">
+      <view class="fabIco">✉</view>
+      <view class="fabTxt">联系我</view>
+    </view>
+  </view>
+</view>

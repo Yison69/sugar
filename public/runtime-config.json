@@ -1,0 +1,8 @@
+{
+  "adminMode": "cloud",
+  "basePath": "",
+  "adminApiHttpBase": "/",
+  "cloudbaseEnvId": "",
+  "cloudbaseClientId": "",
+  "notes": "部署到云端后，填入 cloudbaseEnvId（例如 cloud1-xxxx）。留空会回退到构建时的 VITE_CLOUDBASE_ENV_ID。"
+}

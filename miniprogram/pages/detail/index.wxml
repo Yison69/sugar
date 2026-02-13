@@ -1,0 +1,105 @@
+<view style="padding-bottom: 140rpx;">
+  <view wx:if="{{loading}}" style="padding: 24rpx; color:#6b7280;">加载中…</view>
+  <view wx:if="{{!loading && !item}}" style="padding: 24rpx; color:#6b7280;">内容不存在或已下架</view>
+
+  <view wx:if="{{item}}">
+    <swiper indicator-dots="true" autoplay="false" style="height: 460rpx; background:#e5e7eb;">
+      <block wx:for="{{item.mediaList}}" wx:key="{{index}}">
+        <swiper-item>
+          <block wx:if="{{item.kind==='video'}}">
+            <video src="{{item.url}}" controls="true" style="width:100%; height:460rpx;"></video>
+          </block>
+          <block wx:else>
+            <image src="{{item.url}}" mode="aspectFill" style="width:100%; height:460rpx;"></image>
+          </block>
+        </swiper-item>
+      </block>
+    </swiper>
+
+    <view class="card" style="margin: 24rpx; padding: 24rpx;">
+      <view style="display:flex; align-items:flex-start; justify-content:space-between; gap: 16rpx;">
+        <view style="flex:1;">
+          <view style="font-size: 34rpx; font-weight: 700;">{{item.title}}</view>
+          <view style="margin-top: 8rpx; color:#6b7280; font-size: 24rpx;">{{item.category}} · {{item.type==='package' ? '服务套餐' : '作品'}}</view>
+        </view>
+        <view style="display:flex; align-items:center; gap: 10rpx;" bindtap="toggleLike">
+          <text style="font-size: 34rpx; color: {{item.isLiked ? '#ef4444' : '#6b7280'}};">♥</text>
+          <text style="font-size: 26rpx; color:#6b7280;">{{item.likeCount}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{item.type==='package'}}" style="margin-top: 16rpx; font-size: 30rpx; font-weight: 700;">基础价：¥ {{item.basePrice}}</view>
+      <view wx:if="{{item.description}}" style="margin-top: 12rpx; font-size: 26rpx; color:#374151;">{{item.description}}</view>
+    </view>
+
+    <view wx:if="{{item.type==='package'}}" style="padding: 0 24rpx;">
+      <block wx:for="{{item.optionGroups}}" wx:key="id">
+        <view class="card" style="padding: 24rpx; margin-bottom: 16rpx;">
+          <view style="display:flex; align-items:center; justify-content:space-between;">
+            <view style="font-size: 30rpx; font-weight: 700;">{{item.name}}</view>
+            <view style="font-size: 22rpx; color:#6b7280;">{{item.required ? '必选' : '可选'}} · {{item.selectMode==='single' ? '单选' : '多选'}}</view>
+          </view>
+
+          <view style="margin-top: 16rpx;">
+            <radio-group wx:if="{{item.selectMode==='single'}}" data-groupid="{{item.id}}" bindchange="onRadioChange">
+              <view style="display:flex; flex-direction:column; gap: 12rpx;">
+                <block wx:for="{{item.items}}" wx:key="id">
+                  <label style="display:flex; align-items:center; justify-content:space-between; padding: 18rpx; border-radius: 16rpx; background:#f3f4f6;">
+                    <view style="display:flex; align-items:center; gap: 12rpx;">
+                      <radio value="{{item.id}}" checked="{{item.checked}}" />
+                      <view style="font-size: 26rpx;">{{item.name}}</view>
+                    </view>
+                    <view style="font-size: 24rpx; color:#6b7280;">{{item.deltaText}}</view>
+                  </label>
+                </block>
+              </view>
+            </radio-group>
+
+            <checkbox-group wx:else data-groupid="{{item.id}}" bindchange="onCheckboxChange">
+              <view style="display:flex; flex-direction:column; gap: 12rpx;">
+                <block wx:for="{{item.items}}" wx:key="id">
+                  <label style="display:flex; align-items:center; justify-content:space-between; padding: 18rpx; border-radius: 16rpx; background:#f3f4f6;">
+                    <view style="display:flex; align-items:center; gap: 12rpx;">
+                      <checkbox value="{{item.id}}" checked="{{item.checked}}" />
+                      <view style="font-size: 26rpx;">{{item.name}}</view>
+                    </view>
+                    <view style="font-size: 24rpx; color:#6b7280;">{{item.deltaText}}</view>
+                  </label>
+                </block>
+              </view>
+            </checkbox-group>
+          </view>
+        </view>
+      </block>
+    </view>
+
+    <view class="card" style="margin: 24rpx; padding: 24rpx;">
+      <view style="font-size: 30rpx; font-weight: 700;">预约信息</view>
+      <view style="margin-top: 16rpx; display:flex; flex-direction:column; gap: 14rpx;">
+        <input class="card" style="padding: 18rpx; border: 2rpx solid #e5e7eb;" placeholder="代称" value="{{form.contactName}}" bindinput="onInput" data-field="contactName" />
+        <input class="card" style="padding: 18rpx; border: 2rpx solid #e5e7eb;" placeholder="手机号" value="{{form.contactPhone}}" bindinput="onInput" data-field="contactPhone" />
+        <input class="card" style="padding: 18rpx; border: 2rpx solid #e5e7eb;" placeholder="微信号" value="{{form.contactWechat}}" bindinput="onInput" data-field="contactWechat" />
+        <input class="card" style="padding: 18rpx; border: 2rpx solid #e5e7eb;" placeholder="拍摄类型（例如：写真/毕业照）" value="{{form.shootingType}}" bindinput="onInput" data-field="shootingType" />
+        <input class="card" style="padding: 18rpx; border: 2rpx solid #e5e7eb;" placeholder="日期时间（例如：2026-03-01 14:00）" value="{{form.scheduledAt}}" bindinput="onInput" data-field="scheduledAt" />
+        <textarea class="card" style="padding: 18rpx; border: 2rpx solid #e5e7eb;" placeholder="备注（可选）" value="{{form.remark}}" bindinput="onInput" data-field="remark"></textarea>
+      </view>
+
+      <view style="margin-top: 18rpx; color:#6b7280; font-size: 24rpx;">
+        推荐添加我的微信：{{wechatText}}
+      </view>
+      <image wx:if="{{wechatQrUrl}}" src="{{wechatQrUrl}}" mode="widthFix" style="width: 360rpx; margin-top: 12rpx; border-radius: 16rpx;"></image>
+    </view>
+  </view>
+
+  <view style="position: fixed; left: 24rpx; right: 24rpx; bottom: 24rpx;">
+    <view class="card" style="padding: 18rpx; display:flex; align-items:center; justify-content:space-between;">
+      <view>
+        <view style="font-size: 24rpx; color:#6b7280;">总价</view>
+        <view style="font-size: 34rpx; font-weight: 800;">¥ {{price.total}}</view>
+      </view>
+      <view class="btn-primary" style="width: 280rpx; height: 88rpx; display:flex; align-items:center; justify-content:center;" bindtap="submitBooking">
+        立即预约
+      </view>
+    </view>
+  </view>
+</view>

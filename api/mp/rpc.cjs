@@ -1,0 +1,255 @@
+const { readJsonBody, sendJson, methodNotAllowed } = require('../_lib/http.cjs')
+const { getSupabaseAdmin, throwIfError } = require('../_lib/supabase.cjs')
+
+const ok = (res, data) => sendJson(res, 200, data)
+
+const nowIso = () => new Date().toISOString()
+
+const requireUserId = (body) => {
+  const userId = String((body && body.userId) || '').trim()
+  if (!userId) throw new Error('未登录')
+  return userId
+}
+
+const fromWorkRow = (r) => ({
+  id: r.id,
+  type: 'work',
+  title: r.title,
+  category: r.category,
+  coverUrl: r.cover_url || '',
+  likeCount: Number(r.like_count || 0),
+})
+
+const fromPackageRow = (r) => ({
+  id: r.id,
+  type: 'package',
+  title: r.title,
+  category: r.category,
+  coverUrl: r.cover_url || '',
+  basePrice: Number(r.base_price || 0),
+  likeCount: Number(r.like_count || 0),
+})
+
+async function listItems(sb, body) {
+  const category = String((body && body.category) || '').trim()
+  const type = String((body && body.type) || 'all').trim()
+  if (!category) return { items: [] }
+
+  const [worksRes, pkgsRes] = await Promise.all([
+    type === 'package'
+      ? Promise.resolve({ data: [] })
+      : throwIfError(
+          await sb.from('works').select('*').eq('category', category).eq('is_published', true).order('created_at', { ascending: false }).limit(50),
+        ),
+    type === 'work'
+      ? Promise.resolve({ data: [] })
+      : throwIfError(
+          await sb
+            .from('packages')
+            .select('*')
+            .eq('category', category)
+            .eq('is_published', true)
+            .order('created_at', { ascending: false })
+            .limit(50),
+        ),
+  ])
+
+  const works = (worksRes.data || []).map(fromWorkRow)
+  const pkgs = (pkgsRes.data || []).map(fromPackageRow)
+  const items = [...works, ...pkgs].sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0))
+
+  let userId = ''
+  try {
+    userId = requireUserId(body)
+  } catch {
+    return { items: items.map((x) => ({ ...x, isLiked: false })) }
+  }
+
+  const ids = items.map((x) => x.id)
+  if (!ids.length) return { items: [] }
+
+  const likesRes = throwIfError(await sb.from('likes').select('target_type, target_id').eq('user_id', userId).in('target_id', ids))
+  const likedSet = new Set((likesRes.data || []).map((l) => `${l.target_type}:${l.target_id}`))
+
+  return { items: items.map((x) => ({ ...x, isLiked: likedSet.has(`${x.type}:${x.id}`) })) }
+}
+
+async function getItemDetail(sb, body) {
+  const id = String((body && body.id) || '').trim()
+  const type = String((body && body.type) || '').trim()
+  if (!id || (type !== 'work' && type !== 'package')) return { item: null }
+
+  const table = type === 'package' ? 'packages' : 'works'
+  const r = await sb.from(table).select('*').eq('id', id).eq('is_published', true).single()
+  if (r.error || !r.data) return { item: null }
+  const d = r.data
+
+  let isLiked = false
+  try {
+    const userId = requireUserId(body)
+    const lr = await sb.from('likes').select('id').eq('user_id', userId).eq('target_type', type).eq('target_id', id).limit(1)
+    isLiked = !!((lr.data || []).length)
+  } catch {
+  }
+
+  const mediaUrls = Array.isArray(d.image_urls) && d.image_urls.length ? d.image_urls : [d.cover_url].filter(Boolean)
+
+  const base = {
+    id: d.id,
+    type,
+    title: d.title,
+    category: d.category,
+    coverUrl: d.cover_url || '',
+    mediaUrls,
+    description: d.description || '',
+    likeCount: Number(d.like_count || 0),
+    isLiked,
+  }
+
+  if (type === 'package') {
+    return {
+      item: {
+        ...base,
+        basePrice: Number(d.base_price || 0),
+        deliverables: d.deliverables || '',
+        optionGroups: d.option_groups || [],
+      },
+    }
+  }
+
+  return { item: base }
+}
+
+async function toggleLike(sb, body) {
+  const userId = requireUserId(body)
+  const targetId = String((body && body.targetId) || '').trim()
+  const targetType = String((body && body.targetType) || '').trim()
+  if (!targetId || (targetType !== 'work' && targetType !== 'package')) throw new Error('参数错误')
+
+  const found = await sb.from('likes').select('id').eq('user_id', userId).eq('target_type', targetType).eq('target_id', targetId).limit(1)
+  const exists = (found.data || [])[0]
+
+  const table = targetType === 'package' ? 'packages' : 'works'
+
+  if (exists) {
+    await sb.from('likes').delete().eq('id', exists.id)
+    const current = await sb.from(table).select('like_count').eq('id', targetId).single()
+    const next = Math.max(0, Number((current.data && current.data.like_count) || 0) - 1)
+    await sb.from(table).update({ like_count: next, updated_at: nowIso() }).eq('id', targetId)
+    return { liked: false, likeCount: next }
+  }
+
+  await sb.from('likes').insert({ user_id: userId, target_type: targetType, target_id: targetId })
+  const current = await sb.from(table).select('like_count').eq('id', targetId).single()
+  const next = Math.max(0, Number((current.data && current.data.like_count) || 0) + 1)
+  await sb.from(table).update({ like_count: next, updated_at: nowIso() }).eq('id', targetId)
+  return { liked: true, likeCount: next }
+}
+
+async function createBooking(sb, body) {
+  const userId = requireUserId(body)
+  const payload = body && body.payload
+
+  const requiredKeys = ['itemType', 'itemId', 'itemTitleSnapshot', 'contactName', 'contactPhone', 'contactWechat', 'shootingType', 'scheduledAt']
+  for (const k of requiredKeys) {
+    if (!payload || !payload[k]) throw new Error('请完善预约信息')
+  }
+
+  let computedSelected = payload.selectedOptionsSnapshot || null
+  let computedPrice = payload.priceSnapshot || null
+
+  if (payload.itemType === 'package') {
+    const pkgRes = await sb.from('packages').select('*').eq('id', payload.itemId).eq('is_published', true).single()
+    if (pkgRes.error || !pkgRes.data) throw new Error('套餐不存在或已下架')
+    const pkg = pkgRes.data
+    const optionGroups = pkg.option_groups || []
+    const selected = computedSelected || {}
+    for (const g of optionGroups) {
+      if (!g || !g.required) continue
+      const v = selected[g.id]
+      const okSel = Array.isArray(v) ? v.length > 0 : !!v
+      if (!okSel) throw new Error(`请完成必选项：${g.name}`)
+    }
+
+    const base = Number(pkg.base_price || 0)
+    let delta = 0
+    const lines = []
+    for (const g of optionGroups) {
+      const v = selected[g.id]
+      const pickIds = Array.isArray(v) ? v : v ? [v] : []
+      for (const pid of pickIds) {
+        const it = (g.items || []).find((x) => x.id === pid)
+        if (!it) continue
+        const d = Number(it.deltaPrice || 0)
+        delta += d
+        lines.push({ name: `${g.name}：${it.name}`, delta: d })
+      }
+    }
+    computedSelected = selected
+    computedPrice = { base, delta, total: base + delta, lines }
+  }
+
+  const row = {
+    user_openid: userId,
+    item_type: payload.itemType,
+    item_id: payload.itemId,
+    item_title_snapshot: payload.itemTitleSnapshot,
+    selected_options_snapshot: computedSelected,
+    price_snapshot: computedPrice,
+    contact_name: payload.contactName,
+    contact_phone: payload.contactPhone,
+    contact_wechat: payload.contactWechat,
+    shooting_type: payload.shootingType,
+    scheduled_at: payload.scheduledAt,
+    remark: payload.remark || '',
+    status: '待确认',
+    created_at: nowIso(),
+    updated_at: nowIso(),
+  }
+  const ins = throwIfError(await sb.from('bookings').insert(row).select('id').single())
+  return { id: ins.data.id }
+}
+
+async function getMyBookings(sb, body) {
+  const userId = requireUserId(body)
+  const r = throwIfError(await sb.from('bookings').select('*').eq('user_openid', userId).order('created_at', { ascending: false }).limit(50))
+  const items = (r.data || []).map((d) => ({
+    id: d.id,
+    itemType: d.item_type,
+    itemId: d.item_id,
+    itemTitleSnapshot: d.item_title_snapshot,
+    shootingType: d.shooting_type,
+    scheduledAt: d.scheduled_at,
+    status: d.status,
+    createdAt: d.created_at ? new Date(d.created_at).getTime() : Date.now(),
+  }))
+  return { items }
+}
+
+async function getContactConfig(sb) {
+  const r = await sb.from('app_config').select('value').eq('key', 'contact').single()
+  if (r.error || !r.data) return { wechatText: '', wechatQrUrl: '' }
+  return r.data.value || { wechatText: '', wechatQrUrl: '' }
+}
+
+module.exports = async (req, res) => {
+  if (req.method !== 'POST') return methodNotAllowed(res)
+  const body = await readJsonBody(req)
+  if (!body || typeof body.action !== 'string') return ok(res, { error: '参数错误' })
+
+  const sb = getSupabaseAdmin()
+  try {
+    const action = body.action
+    if (action === 'listItems') return ok(res, await listItems(sb, body.data || body))
+    if (action === 'getItemDetail') return ok(res, await getItemDetail(sb, body.data || body))
+    if (action === 'toggleLike') return ok(res, await toggleLike(sb, body.data || body))
+    if (action === 'createBooking') return ok(res, await createBooking(sb, body.data || body))
+    if (action === 'getMyBookings') return ok(res, await getMyBookings(sb, body.data || body))
+    if (action === 'getContactConfig') return ok(res, await getContactConfig(sb))
+    return ok(res, { error: 'Unknown action' })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Server error'
+    return ok(res, { error: msg })
+  }
+}
+

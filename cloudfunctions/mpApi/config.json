@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "openapi": [
+      "cloudbase.database.get",
+      "cloudbase.database.add",
+      "cloudbase.database.update",
+      "cloudbase.database.remove"
+    ]
+  }
+}
+
