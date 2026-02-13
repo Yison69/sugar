@@ -6,6 +6,7 @@
     "pages/tabs/me/index",
     "pages/home/index",
     "pages/detail/index",
+    "pages/booking-new/index",
     "pages/bookings/index"
   ],
   "window": {

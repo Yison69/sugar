@@ -22,7 +22,10 @@ async function readJsonSafe(res: Response) {
 function toErrorMessage(err: unknown) {
   if (err instanceof Error) return err.message
   if (typeof err === 'string') return err
-  if (err && typeof err === 'object' && 'message' in err) return String((err as any).message)
+  if (err && typeof err === 'object' && 'message' in err) {
+    const m = (err as { message?: unknown }).message
+    return String(m)
+  }
   try {
     return JSON.stringify(err)
   } catch {
@@ -30,7 +33,7 @@ function toErrorMessage(err: unknown) {
   }
 }
 
-async function request<T>(base: string, path: string, payload: any): Promise<T> {
+async function request<T>(base: string, path: string, payload: unknown): Promise<T> {
   const url = joinUrl(base, path)
   let res: Response
   try {
@@ -61,8 +64,8 @@ async function request<T>(base: string, path: string, payload: any): Promise<T> 
 
 export function createAdminApiHttp(base: string) {
   return {
-    call: (action: string, data: any, token?: string) =>
-      request<any>(base, '/api/admin/rpc', {
+    call: (action: string, data: unknown, token?: string) =>
+      request<unknown>(base, '/api/admin/rpc', {
         action,
         data,
         token: token || '',
@@ -79,11 +82,11 @@ export function createAdminApiHttp(base: string) {
       }),
 
     listWorks: (token: string) => request<{ items: Work[] }>(base, '/api/admin/rpc', { action: 'listWorks', data: {}, token }),
-    upsertWork: (token: string, work: any) => request<{ item: Work }>(base, '/api/admin/rpc', { action: 'upsertWork', data: work, token }),
+    upsertWork: (token: string, work: unknown) => request<{ item: Work }>(base, '/api/admin/rpc', { action: 'upsertWork', data: work, token }),
     deleteWork: (token: string, id: string) => request<{ ok: true }>(base, '/api/admin/rpc', { action: 'deleteWork', data: { id }, token }),
 
     listPackages: (token: string) => request<{ items: Package[] }>(base, '/api/admin/rpc', { action: 'listPackages', data: {}, token }),
-    upsertPackage: (token: string, pkg: any) => request<{ item: Package }>(base, '/api/admin/rpc', { action: 'upsertPackage', data: pkg, token }),
+    upsertPackage: (token: string, pkg: unknown) => request<{ item: Package }>(base, '/api/admin/rpc', { action: 'upsertPackage', data: pkg, token }),
     deletePackage: (token: string, id: string) => request<{ ok: true }>(base, '/api/admin/rpc', { action: 'deletePackage', data: { id }, token }),
 
     listBookings: (token: string) => request<{ items: Booking[] }>(base, '/api/admin/rpc', { action: 'listBookings', data: {}, token }),

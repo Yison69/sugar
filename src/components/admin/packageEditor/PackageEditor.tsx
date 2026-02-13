@@ -6,6 +6,7 @@ import PackageOptionsEditor from '@/components/admin/packageEditor/PackageOption
 import type { PackageDraft } from '@/components/admin/packageEditor/draft'
 import CloudUploadButton from '@/components/admin/CloudUploadButton'
 import { useRuntimeConfig } from '@/hooks/useRuntimeConfig'
+import MediaUrlListEditor from '@/components/admin/MediaUrlListEditor'
 
 export default function PackageEditor({ draft, onChange }: { draft: PackageDraft; onChange: (d: PackageDraft) => void }) {
   const runtime = useRuntimeConfig()
@@ -58,6 +59,18 @@ export default function PackageEditor({ draft, onChange }: { draft: PackageDraft
           ) : (
             <div className="mt-2 text-xs text-amber-700">本地离线模式不支持上传到云存储；切到云开发模式后可一键上传并回填。</div>
           )}
+        </div>
+
+        <div className="md:col-span-2">
+          <MediaUrlListEditor
+            title="套餐媒体（图片/视频）"
+            description="用于小程序端展示；建议至少上传 1-6 张图片，可选上传视频"
+            urls={draft.mediaUrls}
+            accept="image/*,video/*"
+            prefix="packages/media"
+            multiple
+            onChange={(mediaUrls) => onChange({ ...draft, mediaUrls })}
+          />
         </div>
         <div className="md:col-span-2">
           <div className="mb-1 text-xs font-medium text-zinc-700">说明（可选）</div>

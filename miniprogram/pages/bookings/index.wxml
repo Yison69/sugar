@@ -2,7 +2,7 @@
   <view wx:if="{{loading}}" style="padding: 24rpx; color:#6b7280;">加载中…</view>
   <view wx:if="{{!loading && items.length===0}}" style="padding: 24rpx; color:#6b7280;">暂无预约</view>
   <view style="display:flex; flex-direction:column; gap: 16rpx;">
-    <block wx:for="{{items}}" wx:key="{{item.id}}">
+    <block wx:for="{{items}}" wx:key="id">
       <view class="card" style="padding: 24rpx;">
         <view style="font-size: 30rpx; font-weight:700;">{{item.itemTitleSnapshot}}</view>
         <view style="margin-top: 8rpx; color:#6b7280; font-size: 24rpx;">{{item.shootingType}} · {{item.scheduledAt}}</view>
@@ -14,4 +14,3 @@
     </block>
   </view>
 </view>
-

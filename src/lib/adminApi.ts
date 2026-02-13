@@ -1,7 +1,7 @@
 import type { Booking, BookingStatus, Package, Work } from '../../shared/types'
 import { useAdminAuth } from '@/stores/adminAuth'
 import { getCloudbaseApp } from '@/lib/cloudbase'
-import { adminApiLocal } from '@/lib/adminApiLocal'
+import { adminApiLocal, type LocalState } from '@/lib/adminApiLocal'
 import { getRuntimeConfig } from '@/lib/runtimeConfig'
 import { createAdminApiHttp } from '@/lib/adminApiHttp'
 
@@ -13,7 +13,10 @@ type RpcResult<T> = T & { error?: string }
 function toErrorMessage(err: unknown) {
   if (err instanceof Error) return err.message
   if (typeof err === 'string') return err
-  if (err && typeof err === 'object' && 'message' in err) return String((err as any).message)
+  if (err && typeof err === 'object' && 'message' in err) {
+    const m = (err as { message?: unknown }).message
+    return String(m)
+  }
   try {
     return JSON.stringify(err)
   } catch {
@@ -47,48 +50,68 @@ async function callAdmin<T>(action: string, data?: unknown): Promise<RpcResult<T
   }
 }
 
-async function callHttp<T>(http: ReturnType<typeof createAdminApiHttp>, action: string, data: unknown, token: string) {
+type AdminHttp = ReturnType<typeof createAdminApiHttp>
+
+async function callHttp<T>(http: AdminHttp, action: string, data: unknown, token: string): Promise<RpcResult<T>> {
   try {
     if (action === 'setup') {
-      const d = data as any
-      return (await http.setup(d.setupKey, d.username, d.password)) as any
+      const d = data as { setupKey: string; username: string; password: string }
+      return (await http.setup(d.setupKey, d.username, d.password)) as unknown as RpcResult<T>
     }
     if (action === 'login') {
-      const d = data as any
-      return (await http.login(d.username, d.password)) as any
+      const d = data as { username: string; password: string }
+      return (await http.login(d.username, d.password)) as unknown as RpcResult<T>
     }
-    return (await http.call(action, data as any, token)) as any
+    return (await http.call(action, data, token)) as unknown as RpcResult<T>
   } catch (e) {
-    return { error: toErrorMessage(e) || 'HTTP 调用失败' } as any
+    return { error: toErrorMessage(e) || 'HTTP 调用失败' } as RpcResult<T>
   }
 }
 
-async function callLocal<T>(action: string, data: unknown, token: string) {
+async function callLocal<T>(action: string, data: unknown, token: string): Promise<RpcResult<T>> {
   if (action === 'setup') {
-    const d = data as any
-    return (await adminApiLocal.setup(d.setupKey, d.username, d.password)) as any
+    const d = data as { setupKey: string; username: string; password: string }
+    return (await adminApiLocal.setup(d.setupKey, d.username, d.password)) as unknown as RpcResult<T>
   }
   if (action === 'login') {
-    const d = data as any
-    return (await adminApiLocal.login(d.username, d.password)) as any
+    const d = data as { username: string; password: string }
+    return (await adminApiLocal.login(d.username, d.password)) as unknown as RpcResult<T>
   }
-  if (action === 'listWorks') return (await adminApiLocal.listWorks(token)) as any
-  if (action === 'upsertWork') return (await adminApiLocal.upsertWork(token, data as any)) as any
-  if (action === 'deleteWork') return (await adminApiLocal.deleteWork(token, (data as any).id)) as any
-  if (action === 'listPackages') return (await adminApiLocal.listPackages(token)) as any
-  if (action === 'upsertPackage') return (await adminApiLocal.upsertPackage(token, data as any)) as any
-  if (action === 'deletePackage') return (await adminApiLocal.deletePackage(token, (data as any).id)) as any
-  if (action === 'listBookings') return (await adminApiLocal.listBookings(token)) as any
+  if (action === 'listWorks') return (await adminApiLocal.listWorks(token)) as unknown as RpcResult<T>
+  if (action === 'upsertWork') {
+    const work = data as Partial<Work> & Pick<Work, 'title' | 'category' | 'coverUrl' | 'imageUrls'>
+    return (await adminApiLocal.upsertWork(token, work)) as unknown as RpcResult<T>
+  }
+  if (action === 'deleteWork') {
+    const id = String((data as { id?: unknown }).id || '')
+    return (await adminApiLocal.deleteWork(token, id)) as unknown as RpcResult<T>
+  }
+  if (action === 'listPackages') return (await adminApiLocal.listPackages(token)) as unknown as RpcResult<T>
+  if (action === 'upsertPackage') {
+    const pkg = data as Partial<Package> & Pick<Package, 'title' | 'category' | 'coverUrl' | 'basePrice' | 'optionGroups'>
+    return (await adminApiLocal.upsertPackage(token, pkg)) as unknown as RpcResult<T>
+  }
+  if (action === 'deletePackage') {
+    const id = String((data as { id?: unknown }).id || '')
+    return (await adminApiLocal.deletePackage(token, id)) as unknown as RpcResult<T>
+  }
+  if (action === 'listBookings') return (await adminApiLocal.listBookings(token)) as unknown as RpcResult<T>
   if (action === 'updateBookingStatus') {
-    const d = data as any
-    return (await adminApiLocal.updateBookingStatus(token, d.id, d.status, d.adminNote)) as any
+    const d = data as { id: string; status: BookingStatus; adminNote?: string }
+    return (await adminApiLocal.updateBookingStatus(token, d.id, d.status, d.adminNote)) as unknown as RpcResult<T>
   }
-  if (action === 'getContactConfig') return (await adminApiLocal.getContactConfig(token)) as any
-  if (action === 'updateContactConfig') return (await adminApiLocal.updateContactConfig(token, data as any)) as any
-  if (action === 'exportAll') return (await adminApiLocal.exportAll(token)) as any
-  if (action === 'importAll') return (await adminApiLocal.importAll(token, data as any)) as any
+  if (action === 'getContactConfig') return (await adminApiLocal.getContactConfig(token)) as unknown as RpcResult<T>
+  if (action === 'updateContactConfig') {
+    const cfg = data as { wechatText: string; wechatQrUrl: string }
+    return (await adminApiLocal.updateContactConfig(token, cfg)) as unknown as RpcResult<T>
+  }
+  if (action === 'exportAll') return (await adminApiLocal.exportAll(token)) as unknown as RpcResult<T>
+  if (action === 'importAll') {
+    const payload = data as Partial<LocalState>
+    return (await adminApiLocal.importAll(token, payload)) as unknown as RpcResult<T>
+  }
 
-  return { error: 'Unknown action' } as any
+  return { error: 'Unknown action' } as RpcResult<T>
 }
 
 async function ensureOk<T>(p: Promise<RpcResult<T>>): Promise<T> {
@@ -105,8 +128,8 @@ export const adminApi = {
   setup: (setupKey: string, username: string, password: string) =>
     ensureOk(callAdmin<{ ok: true; id: string }>('setup', { setupKey, username, password })),
 
-  exportAll: () => ensureOk(callAdmin<any>('exportAll')),
-  importAll: (payload: any) => ensureOk(callAdmin<{ ok: true }>('importAll', payload)),
+  exportAll: () => ensureOk(callAdmin<LocalState>('exportAll')),
+  importAll: (payload: Partial<LocalState>) => ensureOk(callAdmin<{ ok: true }>('importAll', payload)),
 
   listWorks: () => ensureOk(callAdmin<{ items: Work[] }>('listWorks')),
   upsertWork: (work: Partial<Work> & Pick<Work, 'title' | 'category' | 'coverUrl' | 'imageUrls'>) =>

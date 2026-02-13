@@ -1,7 +1,7 @@
 App({
   globalData: {
     envId: 'cloud1-7guv7m7n94f2b2e0',
-    apiBase: 'https://sugar-dusky.vercel.app',
+    apiBase: '',
     userId: '',
     openid: '',
     nickname: ''

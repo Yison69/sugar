@@ -139,6 +139,7 @@ export default function AdminPackages() {
               if (!draft.title.trim()) throw new Error('标题不能为空')
               if (!draft.coverUrl.trim()) throw new Error('封面地址不能为空')
               if (!Number.isFinite(basePrice) || basePrice < 0) throw new Error('基础价不合法')
+              const mediaUrls = (draft.mediaUrls || []).map((u) => String(u || '').trim()).filter(Boolean)
               const cleanedGroups = draft.optionGroups.map((g) => ({
                 ...g,
                 name: g.name.trim(),
@@ -147,6 +148,7 @@ export default function AdminPackages() {
                   name: it.name.trim(),
                   op: g.op,
                   deltaPrice: Number(it.deltaPrice),
+                  assetUrls: (it.assetUrls || []).map((u) => String(u || '').trim()).filter(Boolean),
                 })),
               }))
               for (const g of cleanedGroups) {
@@ -162,6 +164,7 @@ export default function AdminPackages() {
                 title: draft.title.trim(),
                 category: draft.category,
                 coverUrl: draft.coverUrl.trim(),
+                mediaUrls,
                 basePrice,
                 description: draft.description.trim() || undefined,
                 deliverables: draft.deliverables.trim() || undefined,

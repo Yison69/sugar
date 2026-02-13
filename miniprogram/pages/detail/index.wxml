@@ -1,26 +1,49 @@
-<view style="padding-bottom: 140rpx;">
+<view style="padding-bottom: 24rpx;">
   <view wx:if="{{loading}}" style="padding: 24rpx; color:#6b7280;">加载中…</view>
   <view wx:if="{{!loading && !item}}" style="padding: 24rpx; color:#6b7280;">内容不存在或已下架</view>
 
   <view wx:if="{{item}}">
-    <swiper indicator-dots="true" autoplay="false" style="height: 460rpx; background:#e5e7eb;">
-      <block wx:for="{{item.mediaList}}" wx:key="{{index}}">
-        <swiper-item>
-          <block wx:if="{{item.kind==='video'}}">
-            <video src="{{item.url}}" controls="true" style="width:100%; height:460rpx;"></video>
-          </block>
-          <block wx:else>
-            <image src="{{item.url}}" mode="aspectFill" style="width:100%; height:460rpx;"></image>
-          </block>
-        </swiper-item>
-      </block>
-    </swiper>
+    <view style="position: relative; background:#000;">
+      <swiper
+        autoplay="false"
+        circular="false"
+        style="height: {{heroHeightPx}}px;"
+        current="{{swiperIndex}}"
+        bindchange="onSwiperChange"
+      >
+        <block wx:for="{{item.mediaList}}" wx:key="index">
+          <swiper-item>
+            <block wx:if="{{item.kind==='video'}}">
+              <video src="{{item.url}}" controls="true" style="width:100%; height: {{heroHeightPx}}px;"></video>
+            </block>
+            <block wx:else>
+              <image
+                src="{{item.url}}"
+                mode="aspectFill"
+                style="width:100%; height: {{heroHeightPx}}px;"
+                bindtap="onPreviewMedia"
+                data-index="{{index}}"
+              />
+            </block>
+          </swiper-item>
+        </block>
+      </swiper>
 
-    <view class="card" style="margin: 24rpx; padding: 24rpx;">
+      <view
+        style="position:absolute; right: 18rpx; bottom: 18rpx; padding: 8rpx 14rpx; border-radius: 999rpx; color:#fff; font-size: 22rpx; background: rgba(0,0,0,0.45);"
+      >
+        {{swiperIndex + 1}}/{{item.mediaList.length}}
+      </view>
+    </view>
+
+    <view class="card" style="margin: 20rpx 24rpx 0; padding: 24rpx;">
       <view style="display:flex; align-items:flex-start; justify-content:space-between; gap: 16rpx;">
-        <view style="flex:1;">
-          <view style="font-size: 34rpx; font-weight: 700;">{{item.title}}</view>
-          <view style="margin-top: 8rpx; color:#6b7280; font-size: 24rpx;">{{item.category}} · {{item.type==='package' ? '服务套餐' : '作品'}}</view>
+        <view style="flex:1; min-width:0;">
+          <view style="font-size: 34rpx; font-weight: 900; line-height: 44rpx;">{{item.title}}</view>
+          <view style="margin-top: 10rpx; display:flex; gap: 10rpx; flex-wrap:wrap; align-items:center;">
+            <view style="font-size: 22rpx; color:#6b7280; padding: 6rpx 10rpx; background:#f3f4f6; border-radius: 999rpx;">{{item.category}}</view>
+            <view style="font-size: 22rpx; color:#6b7280; padding: 6rpx 10rpx; background:#f3f4f6; border-radius: 999rpx;">{{item.type==='package' ? '服务' : '作品'}}</view>
+          </view>
         </view>
         <view style="display:flex; align-items:center; gap: 10rpx;" bindtap="toggleLike">
           <text style="font-size: 34rpx; color: {{item.isLiked ? '#ef4444' : '#6b7280'}};">♥</text>
@@ -28,8 +51,21 @@
         </view>
       </view>
 
-      <view wx:if="{{item.type==='package'}}" style="margin-top: 16rpx; font-size: 30rpx; font-weight: 700;">基础价：¥ {{item.basePrice}}</view>
-      <view wx:if="{{item.description}}" style="margin-top: 12rpx; font-size: 26rpx; color:#374151;">{{item.description}}</view>
+      <view wx:if="{{item.type==='package'}}" style="margin-top: 16rpx; font-size: 30rpx; font-weight: 800;">基础价：¥ {{item.basePrice}}</view>
+      <view wx:if="{{item.description}}" style="margin-top: 14rpx; font-size: 26rpx; color:#374151; line-height: 38rpx;">{{item.description}}</view>
+    </view>
+
+    <view wx:if="{{thumbs.length>1}}" style="margin: 16rpx 24rpx 0;">
+      <scroll-view scroll-x="true" show-scrollbar="false" style="white-space: nowrap;">
+        <view style="display:inline-flex; gap: 12rpx; padding-bottom: 6rpx;">
+          <block wx:for="{{thumbs}}" wx:key="index">
+            <view style="position: relative; width: 160rpx; height: 160rpx; border-radius: 20rpx; overflow:hidden; background:#e5e7eb;" bindtap="onPreviewMedia" data-index="{{item.index}}">
+              <image wx:if="{{item.kind==='image'}}" src="{{item.url}}" mode="aspectFill" style="width:100%; height:100%;" />
+              <view wx:if="{{item.kind==='video'}}" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#fff; font-size: 26rpx; background: rgba(0,0,0,0.25);">视频</view>
+            </view>
+          </block>
+        </view>
+      </scroll-view>
     </view>
 
     <view wx:if="{{item.type==='package'}}" style="padding: 0 24rpx;">
@@ -73,33 +109,33 @@
       </block>
     </view>
 
-    <view class="card" style="margin: 24rpx; padding: 24rpx;">
-      <view style="font-size: 30rpx; font-weight: 700;">预约信息</view>
-      <view style="margin-top: 16rpx; display:flex; flex-direction:column; gap: 14rpx;">
-        <input class="card" style="padding: 18rpx; border: 2rpx solid #e5e7eb;" placeholder="代称" value="{{form.contactName}}" bindinput="onInput" data-field="contactName" />
-        <input class="card" style="padding: 18rpx; border: 2rpx solid #e5e7eb;" placeholder="手机号" value="{{form.contactPhone}}" bindinput="onInput" data-field="contactPhone" />
-        <input class="card" style="padding: 18rpx; border: 2rpx solid #e5e7eb;" placeholder="微信号" value="{{form.contactWechat}}" bindinput="onInput" data-field="contactWechat" />
-        <input class="card" style="padding: 18rpx; border: 2rpx solid #e5e7eb;" placeholder="拍摄类型（例如：写真/毕业照）" value="{{form.shootingType}}" bindinput="onInput" data-field="shootingType" />
-        <input class="card" style="padding: 18rpx; border: 2rpx solid #e5e7eb;" placeholder="日期时间（例如：2026-03-01 14:00）" value="{{form.scheduledAt}}" bindinput="onInput" data-field="scheduledAt" />
-        <textarea class="card" style="padding: 18rpx; border: 2rpx solid #e5e7eb;" placeholder="备注（可选）" value="{{form.remark}}" bindinput="onInput" data-field="remark"></textarea>
-      </view>
+    <view wx:if="{{item.type==='package' && selectedAssets.length>0}}" class="card" style="margin: 0 24rpx 24rpx; padding: 24rpx;">
+      <view style="font-size: 30rpx; font-weight: 800;">选项资源</view>
 
-      <view style="margin-top: 18rpx; color:#6b7280; font-size: 24rpx;">
-        推荐添加我的微信：{{wechatText}}
+      <view style="margin-top: 16rpx; display:flex; flex-direction:column; gap: 16rpx;">
+        <view style="display:flex; flex-wrap:wrap; gap: 12rpx;">
+          <block wx:for="{{selectedAssets}}" wx:key="url">
+            <block wx:if="{{item.kind==='image'}}">
+              <image
+                src="{{item.url}}"
+                mode="aspectFill"
+                style="width: 216rpx; height: 216rpx; border-radius: 18rpx; background:#e5e7eb;"
+                bindtap="onPreviewOptionAsset"
+                data-url="{{item.url}}"
+              />
+            </block>
+          </block>
+        </view>
+
+        <view>
+          <block wx:for="{{selectedAssets}}" wx:key="url">
+            <block wx:if="{{item.kind==='video'}}">
+              <video src="{{item.url}}" controls="true" style="width:100%; height: 420rpx; border-radius: 18rpx;"></video>
+            </block>
+          </block>
+        </view>
       </view>
-      <image wx:if="{{wechatQrUrl}}" src="{{wechatQrUrl}}" mode="widthFix" style="width: 360rpx; margin-top: 12rpx; border-radius: 16rpx;"></image>
     </view>
   </view>
 
-  <view style="position: fixed; left: 24rpx; right: 24rpx; bottom: 24rpx;">
-    <view class="card" style="padding: 18rpx; display:flex; align-items:center; justify-content:space-between;">
-      <view>
-        <view style="font-size: 24rpx; color:#6b7280;">总价</view>
-        <view style="font-size: 34rpx; font-weight: 800;">¥ {{price.total}}</view>
-      </view>
-      <view class="btn-primary" style="width: 280rpx; height: 88rpx; display:flex; align-items:center; justify-content:center;" bindtap="submitBooking">
-        立即预约
-      </view>
-    </view>
-  </view>
 </view>

@@ -1,6 +1,6 @@
 <view class="page">
   <view class="stack">
-    <block wx:for="{{categories}}" wx:key="{{item}}">
+    <block wx:for="{{categories}}" wx:key="item">
       <view class="card" bindtap="openCategory" data-category="{{item}}">
         <view class="cardBg" />
         <view class="cardContent">

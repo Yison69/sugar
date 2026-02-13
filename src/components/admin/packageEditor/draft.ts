@@ -5,6 +5,7 @@ export type PackageDraft = {
   title: string
   category: Category
   coverUrl: string
+  mediaUrls: string[]
   basePrice: string
   description: string
   deliverables: string
@@ -19,20 +20,27 @@ export const toPackageDraft = (p?: Package): PackageDraft =>
         title: p.title,
         category: p.category,
         coverUrl: p.coverUrl,
+        mediaUrls: Array.isArray(p.mediaUrls) ? p.mediaUrls : [],
         basePrice: String(p.basePrice),
         description: p.description ?? '',
         deliverables: p.deliverables ?? '',
         isPublished: p.isPublished,
-        optionGroups: p.optionGroups ?? [],
+        optionGroups: (p.optionGroups ?? []).map((g) => ({
+          ...g,
+          items: (g.items || []).map((it) => ({
+            ...it,
+            assetUrls: Array.isArray(it.assetUrls) ? it.assetUrls : [],
+          })),
+        })),
       }
     : {
         title: '',
         category: '写真照',
         coverUrl: '',
+        mediaUrls: [],
         basePrice: '0',
         description: '',
         deliverables: '',
         isPublished: true,
         optionGroups: [],
       }
-

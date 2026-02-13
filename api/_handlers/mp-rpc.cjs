@@ -100,7 +100,8 @@ async function getItemDetail(sb, body) {
   } catch {
   }
 
-  const mediaUrls = Array.isArray(d.image_urls) && d.image_urls.length ? d.image_urls : [d.cover_url].filter(Boolean)
+  const rawMedia = type === 'package' ? d.media_urls : d.image_urls
+  const mediaUrls = Array.isArray(rawMedia) && rawMedia.length ? rawMedia : [d.cover_url].filter(Boolean)
 
   const base = {
     id: d.id,
@@ -164,19 +165,24 @@ async function createBooking(sb, body) {
   const userId = requireUserId(body)
   const payload = body && body.payload
 
-  const requiredKeys = ['itemType', 'itemId', 'itemTitleSnapshot', 'contactName', 'contactPhone', 'contactWechat', 'shootingType', 'scheduledAt']
+  const requiredKeys = ['contactName', 'contactPhone', 'shootingType', 'scheduledAt']
   for (const k of requiredKeys) {
     if (!payload || !payload[k]) throw new Error('请完善预约信息')
   }
 
+  const itemType = payload.itemType || 'custom'
+  const itemId = payload.itemId || ''
+  const itemTitleSnapshot = payload.itemTitleSnapshot || payload.shootingType || '预约'
+
   let computedSelected = payload.selectedOptionsSnapshot || null
   let computedPrice = payload.priceSnapshot || null
 
-  if (payload.itemType === 'package') {
+  if (itemType === 'package') {
+    if (!itemId) throw new Error('套餐不存在或已下架')
     const pkgRes = await sb
       .from('packages')
       .select('*')
-      .eq('id', payload.itemId)
+      .eq('id', itemId)
       .eq('is_published', true)
       .single()
     if (pkgRes.error || !pkgRes.data) throw new Error('套餐不存在或已下架')
@@ -210,14 +216,14 @@ async function createBooking(sb, body) {
 
   const row = {
     user_openid: userId,
-    item_type: payload.itemType,
-    item_id: payload.itemId,
-    item_title_snapshot: payload.itemTitleSnapshot,
+    item_type: itemType,
+    item_id: itemId,
+    item_title_snapshot: itemTitleSnapshot,
     selected_options_snapshot: computedSelected,
     price_snapshot: computedPrice,
     contact_name: payload.contactName,
     contact_phone: payload.contactPhone,
-    contact_wechat: payload.contactWechat,
+    contact_wechat: payload.contactWechat || '',
     shooting_type: payload.shootingType,
     scheduled_at: payload.scheduledAt,
     remark: payload.remark || '',

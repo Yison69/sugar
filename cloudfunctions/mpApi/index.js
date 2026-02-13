@@ -2,11 +2,7 @@ const cloud = require('wx-server-sdk')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
-try {
-  if (!globalThis.fetch) globalThis.fetch = require('undici').fetch
-} catch (_) {}
-
-const { createClient } = require('@supabase/supabase-js')
+const https = require('https')
 
 const requiredEnv = (name) => {
   const v = (process.env[name] || '').trim()
@@ -14,10 +10,81 @@ const requiredEnv = (name) => {
   return v
 }
 
-const getSb = () => {
+const getSbConfig = () => {
   const url = requiredEnv('SUPABASE_URL')
   const key = requiredEnv('SUPABASE_SERVICE_ROLE_KEY')
-  return createClient(url, key, { auth: { persistSession: false } })
+  return { url, key }
+}
+
+const requestSb = (method, pathWithQuery, body) => {
+  const { url: baseUrl, key } = getSbConfig()
+  const u = new URL(baseUrl)
+  const basePath = u.pathname && u.pathname !== '/' ? u.pathname.replace(/\/+$/, '') : ''
+  const fullPath = `${basePath}${pathWithQuery}`
+
+  const headers = {
+    apikey: key,
+    Authorization: `Bearer ${key}`,
+    Accept: 'application/json'
+  }
+  let payload = null
+  if (body !== undefined) {
+    payload = Buffer.from(JSON.stringify(body), 'utf8')
+    headers['Content-Type'] = 'application/json'
+    headers['Content-Length'] = String(payload.length)
+    headers.Prefer = 'return=representation'
+  }
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        protocol: u.protocol,
+        hostname: u.hostname,
+        port: u.port || 443,
+        method,
+        path: fullPath,
+        headers,
+        timeout: 8000
+      },
+      (res) => {
+        const chunks = []
+        res.on('data', (d) => chunks.push(d))
+        res.on('end', () => {
+          const txt = Buffer.concat(chunks).toString('utf8')
+          const code = res.statusCode || 0
+          if (!txt) {
+            if (code >= 200 && code < 300) return resolve(null)
+            return reject(new Error(`Supabase 请求失败(${code})`))
+          }
+          let json
+          try {
+            json = JSON.parse(txt)
+          } catch {
+            if (code >= 200 && code < 300) return resolve(txt)
+            return reject(new Error(`Supabase 请求失败(${code})`))
+          }
+          if (code >= 200 && code < 300) return resolve(json)
+          const msg = (json && (json.message || json.error_description || json.error)) || `Supabase 请求失败(${code})`
+          return reject(new Error(msg))
+        })
+      },
+    )
+    req.on('timeout', () => {
+      req.destroy(new Error('Supabase 请求超时'))
+    })
+    req.on('error', (e) => reject(e))
+    if (payload) req.write(payload)
+    req.end()
+  })
+}
+
+const qs = (params) => {
+  const parts = []
+  for (const [k, v] of Object.entries(params || {})) {
+    if (v === undefined || v === null || v === '') continue
+    parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+  }
+  return parts.length ? `?${parts.join('&')}` : ''
 }
 
 const ok = (data) => data
@@ -31,26 +98,35 @@ const getOpenid = () => {
 
 async function listItems({ category, type }) {
   const openid = getOpenid()
-  const sb = getSb()
 
-  const [worksRes, pkgsRes] = await Promise.all([
+  const [worksData, pkgsData] = await Promise.all([
     type === 'package'
-      ? Promise.resolve({ data: [] })
-      : sb.from('works').select('*').eq('category', category).eq('is_published', true).order('created_at', { ascending: false }).limit(50),
+      ? Promise.resolve([])
+      : requestSb(
+          'GET',
+          `/rest/v1/works${qs({
+            select: 'id,title,category,cover_url,like_count,created_at',
+            category: `eq.${category}`,
+            is_published: 'eq.true',
+            order: 'created_at.desc',
+            limit: 50
+          })}`,
+        ),
     type === 'work'
-      ? Promise.resolve({ data: [] })
-      : sb
-          .from('packages')
-          .select('*')
-          .eq('category', category)
-          .eq('is_published', true)
-          .order('created_at', { ascending: false })
-          .limit(50)
+      ? Promise.resolve([])
+      : requestSb(
+          'GET',
+          `/rest/v1/packages${qs({
+            select: 'id,title,category,cover_url,base_price,like_count,created_at',
+            category: `eq.${category}`,
+            is_published: 'eq.true',
+            order: 'created_at.desc',
+            limit: 50
+          })}`,
+        )
   ])
 
-  if ((worksRes && worksRes.error) || (pkgsRes && pkgsRes.error)) throw new Error('加载失败')
-
-  const works = (worksRes.data || []).map((d) => ({
+  const works = (worksData || []).map((d) => ({
     id: d.id,
     type: 'work',
     title: d.title,
@@ -58,7 +134,7 @@ async function listItems({ category, type }) {
     coverUrl: d.cover_url || '',
     likeCount: Number(d.like_count || 0)
   }))
-  const pkgs = (pkgsRes.data || []).map((d) => ({
+  const pkgs = (pkgsData || []).map((d) => ({
     id: d.id,
     type: 'package',
     title: d.title,
@@ -72,33 +148,64 @@ async function listItems({ category, type }) {
   const ids = items.map((x) => x.id)
   if (!openid || !ids.length) return ok({ items: items.map((x) => ({ ...x, isLiked: false })) })
 
-  const likesRes = await sb.from('likes').select('target_type, target_id').eq('user_id', openid).in('target_id', ids)
-  if (likesRes.error) return ok({ items: items.map((x) => ({ ...x, isLiked: false })) })
-  const likedSet = new Set((likesRes.data || []).map((l) => `${l.target_type}:${l.target_id}`))
+  const inList = `in.(${ids.join(',')})`
+  let likes = []
+  try {
+    likes =
+      (await requestSb(
+        'GET',
+        `/rest/v1/likes${qs({
+          select: 'target_type,target_id',
+          user_id: `eq.${openid}`,
+          target_id: inList,
+          limit: 200
+        })}`,
+      )) || []
+  } catch {
+    likes = []
+  }
+  const likedSet = new Set((likes || []).map((l) => `${l.target_type}:${l.target_id}`))
   return ok({ items: items.map((x) => ({ ...x, isLiked: likedSet.has(`${x.type}:${x.id}`) })) })
 }
 
 async function getItemDetail({ id, type }) {
   const openid = getOpenid()
-  const sb = getSb()
   const table = type === 'package' ? 'packages' : 'works'
-  const docRes = await sb.from(table).select('*').eq('id', id).eq('is_published', true).single()
-  const d = docRes && docRes.data
+  const list =
+    (await requestSb(
+      'GET',
+      `/rest/v1/${table}${qs({
+        select: '*',
+        id: `eq.${id}`,
+        is_published: 'eq.true',
+        limit: 1
+      })}`,
+    )) || []
+  const d = list[0]
   if (!d) return ok({ item: null })
 
   let isLiked = false
   if (openid) {
-    const likeRes = await sb
-      .from('likes')
-      .select('id')
-      .eq('user_id', openid)
-      .eq('target_type', type)
-      .eq('target_id', id)
-      .limit(1)
-    isLiked = !!((likeRes.data || []).length)
+    try {
+      const likeList =
+        (await requestSb(
+          'GET',
+          `/rest/v1/likes${qs({
+            select: 'id',
+            user_id: `eq.${openid}`,
+            target_type: `eq.${type}`,
+            target_id: `eq.${id}`,
+            limit: 1
+          })}`,
+        )) || []
+      isLiked = likeList.length > 0
+    } catch {
+      isLiked = false
+    }
   }
 
-  const mediaUrls = Array.isArray(d.image_urls) && d.image_urls.length ? d.image_urls : [d.cover_url].filter(Boolean)
+  const rawMedia = type === 'package' ? d.media_urls : d.image_urls
+  const mediaUrls = Array.isArray(rawMedia) && rawMedia.length ? rawMedia : [d.cover_url].filter(Boolean)
 
   const base = {
     id: d.id,
@@ -131,49 +238,76 @@ async function toggleLike({ targetId, targetType }) {
   if (!openid) throw new Error('未登录')
   if (!targetId || (targetType !== 'work' && targetType !== 'package')) throw new Error('参数错误')
 
-  const sb = getSb()
-  const found = await sb
-    .from('likes')
-    .select('id')
-    .eq('user_id', openid)
-    .eq('target_type', targetType)
-    .eq('target_id', targetId)
-    .limit(1)
-  const exists = (found.data || [])[0]
+  const found =
+    (await requestSb(
+      'GET',
+      `/rest/v1/likes${qs({
+        select: 'id',
+        user_id: `eq.${openid}`,
+        target_type: `eq.${targetType}`,
+        target_id: `eq.${targetId}`,
+        limit: 1
+      })}`,
+    )) || []
+  const exists = found[0]
 
   const table = targetType === 'package' ? 'packages' : 'works'
   if (exists) {
-    await sb.from('likes').delete().eq('id', exists.id)
-    const current = await sb.from(table).select('like_count').eq('id', targetId).single()
-    const next = Math.max(0, Number((current.data && current.data.like_count) || 0) - 1)
-    await sb.from(table).update({ like_count: next, updated_at: nowIso() }).eq('id', targetId)
+    await requestSb('DELETE', `/rest/v1/likes${qs({ id: `eq.${exists.id}` })}`)
+    const currentList =
+      (await requestSb(
+        'GET',
+        `/rest/v1/${table}${qs({ select: 'like_count', id: `eq.${targetId}`, limit: 1 })}`,
+      )) || []
+    const curr = currentList[0]
+    const next = Math.max(0, Number((curr && curr.like_count) || 0) - 1)
+    await requestSb('PATCH', `/rest/v1/${table}${qs({ id: `eq.${targetId}` })}`, { like_count: next, updated_at: nowIso() })
     return ok({ liked: false, likeCount: next })
   }
 
-  await sb.from('likes').insert({ user_id: openid, target_type: targetType, target_id: targetId })
-  const current = await sb.from(table).select('like_count').eq('id', targetId).single()
-  const next = Math.max(0, Number((current.data && current.data.like_count) || 0) + 1)
-  await sb.from(table).update({ like_count: next, updated_at: nowIso() }).eq('id', targetId)
+  await requestSb('POST', `/rest/v1/likes`, { user_id: openid, target_type: targetType, target_id: targetId })
+  const currentList =
+    (await requestSb(
+      'GET',
+      `/rest/v1/${table}${qs({ select: 'like_count', id: `eq.${targetId}`, limit: 1 })}`,
+    )) || []
+  const curr = currentList[0]
+  const next = Math.max(0, Number((curr && curr.like_count) || 0) + 1)
+  await requestSb('PATCH', `/rest/v1/${table}${qs({ id: `eq.${targetId}` })}`, { like_count: next, updated_at: nowIso() })
   return ok({ liked: true, likeCount: next })
 }
 
-async function createBooking(payload) {
+async function createBooking(input) {
   const openid = getOpenid()
   if (!openid) throw new Error('未登录')
 
-  const required = ['itemType', 'itemId', 'itemTitleSnapshot', 'contactName', 'contactPhone', 'contactWechat', 'shootingType', 'scheduledAt']
+  const payload = input && input.payload ? input.payload : input
+
+  const required = ['contactName', 'contactPhone', 'shootingType', 'scheduledAt']
   for (const k of required) {
     if (!payload || !payload[k]) throw new Error('请完善预约信息')
   }
 
-  const sb = getSb()
+  const itemType = payload.itemType || 'custom'
+  const itemId = payload.itemId || ''
+  const itemTitleSnapshot = payload.itemTitleSnapshot || payload.shootingType || '预约'
 
   let computedSelected = payload.selectedOptionsSnapshot || null
   let computedPrice = payload.priceSnapshot || null
 
-  if (payload.itemType === 'package') {
-    const pkgRes = await sb.from('packages').select('*').eq('id', payload.itemId).eq('is_published', true).single()
-    const pkg = pkgRes && pkgRes.data
+  if (itemType === 'package') {
+    if (!itemId) throw new Error('套餐不存在或已下架')
+    const pkgList =
+      (await requestSb(
+        'GET',
+        `/rest/v1/packages${qs({
+          select: 'base_price,option_groups,is_published',
+          id: `eq.${itemId}`,
+          is_published: 'eq.true',
+          limit: 1
+        })}`,
+      )) || []
+    const pkg = pkgList[0]
     if (!pkg) throw new Error('套餐不存在或已下架')
 
     const optionGroups = pkg.option_groups || []
@@ -205,14 +339,14 @@ async function createBooking(payload) {
 
   const row = {
     user_openid: openid,
-    item_type: payload.itemType,
-    item_id: payload.itemId,
-    item_title_snapshot: payload.itemTitleSnapshot,
+    item_type: itemType,
+    item_id: itemId,
+    item_title_snapshot: itemTitleSnapshot,
     selected_options_snapshot: computedSelected,
     price_snapshot: computedPrice,
     contact_name: payload.contactName,
     contact_phone: payload.contactPhone,
-    contact_wechat: payload.contactWechat,
+    contact_wechat: payload.contactWechat || '',
     shooting_type: payload.shootingType,
     scheduled_at: payload.scheduledAt,
     remark: payload.remark || '',
@@ -221,18 +355,26 @@ async function createBooking(payload) {
     updated_at: nowIso()
   }
 
-  const ins = await sb.from('bookings').insert(row).select('id').single()
-  if (ins.error || !ins.data) throw new Error('提交失败')
-  return ok({ id: ins.data.id })
+  const ins = await requestSb('POST', `/rest/v1/bookings${qs({ select: 'id' })}`, row)
+  const first = Array.isArray(ins) ? ins[0] : null
+  if (!first || !first.id) throw new Error('提交失败')
+  return ok({ id: first.id })
 }
 
 async function getMyBookings() {
   const openid = getOpenid()
   if (!openid) return ok({ items: [] })
-  const sb = getSb()
-  const res = await sb.from('bookings').select('*').eq('user_openid', openid).order('created_at', { ascending: false }).limit(50)
-  if (res.error) return ok({ items: [] })
-  const items = (res.data || []).map((d) => ({
+  const res =
+    (await requestSb(
+      'GET',
+      `/rest/v1/bookings${qs({
+        select: 'id,item_type,item_id,item_title_snapshot,shooting_type,scheduled_at,status,created_at',
+        user_openid: `eq.${openid}`,
+        order: 'created_at.desc',
+        limit: 50
+      })}`,
+    )) || []
+  const items = (res || []).map((d) => ({
     id: d.id,
     itemType: d.item_type,
     itemId: d.item_id,
@@ -246,9 +388,9 @@ async function getMyBookings() {
 }
 
 async function getContactConfig() {
-  const sb = getSb()
-  const res = await sb.from('app_config').select('value').eq('key', 'contact').single()
-  const v = (res && res.data && res.data.value) || {}
+  const list =
+    (await requestSb('GET', `/rest/v1/app_config${qs({ select: 'value', key: 'eq.contact', limit: 1 })}`)) || []
+  const v = (list[0] && list[0].value) || {}
   return ok({ wechatText: String(v.wechatText || ''), wechatQrUrl: String(v.wechatQrUrl || '') })
 }
 

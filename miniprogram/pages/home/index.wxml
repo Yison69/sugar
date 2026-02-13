@@ -1,25 +1,4 @@
 <view class="page">
-  <view class="sticky">
-    <view class="panel">
-      <view class="panelTitle">分类</view>
-      <scroll-view class="catScroll" scroll-x="true" show-scrollbar="false">
-        <view class="catRow">
-          <block wx:for="{{categories}}" wx:key="item">
-            <view class="chip {{currentCategory===item ? 'chipActive' : ''}}" bindtap="onSelectCategory" data-value="{{item}}">
-              {{item}}
-            </view>
-          </block>
-        </view>
-      </scroll-view>
-
-      <view wx:if="{{!typeLocked}}" class="seg">
-        <view class="segItem {{currentType==='all' ? 'segActive' : ''}}" bindtap="onSelectType" data-value="all">全部</view>
-        <view class="segItem {{currentType==='work' ? 'segActive' : ''}}" bindtap="onSelectType" data-value="work">作品</view>
-        <view class="segItem {{currentType==='package' ? 'segActive' : ''}}" bindtap="onSelectType" data-value="package">套餐</view>
-      </view>
-    </view>
-  </view>
-
   <view class="content">
     <view wx:if="{{!loading && leftItems.length===0 && rightItems.length===0}}" class="empty">
       <view class="emptyArt">

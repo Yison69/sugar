@@ -9,13 +9,14 @@ type RuntimeConfig = {
 let cached: RuntimeConfig | null = null
 let loading: Promise<RuntimeConfig> | null = null
 
-function coerce(v: any): RuntimeConfig {
+function coerce(v: unknown): RuntimeConfig {
   if (!v || typeof v !== 'object') return {}
-  const adminMode = v.adminMode === 'local' || v.adminMode === 'cloud' ? v.adminMode : undefined
-  const basePath = typeof v.basePath === 'string' ? v.basePath.trim() : undefined
-  const adminApiHttpBase = typeof v.adminApiHttpBase === 'string' ? v.adminApiHttpBase.trim() : undefined
-  const cloudbaseEnvId = typeof v.cloudbaseEnvId === 'string' ? v.cloudbaseEnvId.trim() : undefined
-  const cloudbaseClientId = typeof v.cloudbaseClientId === 'string' ? v.cloudbaseClientId.trim() : undefined
+  const o = v as Record<string, unknown>
+  const adminMode = o.adminMode === 'local' || o.adminMode === 'cloud' ? o.adminMode : undefined
+  const basePath = typeof o.basePath === 'string' ? o.basePath.trim() : undefined
+  const adminApiHttpBase = typeof o.adminApiHttpBase === 'string' ? o.adminApiHttpBase.trim() : undefined
+  const cloudbaseEnvId = typeof o.cloudbaseEnvId === 'string' ? o.cloudbaseEnvId.trim() : undefined
+  const cloudbaseClientId = typeof o.cloudbaseClientId === 'string' ? o.cloudbaseClientId.trim() : undefined
   return {
     adminMode,
     basePath: basePath || undefined,

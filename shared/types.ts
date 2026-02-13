@@ -10,6 +10,7 @@ export type PackageOptionItem = {
   op: PriceOp
   deltaPrice: number
   maxQty?: number
+  assetUrls?: string[]
 }
 
 export type PackageOptionGroup = {
@@ -39,6 +40,7 @@ export type Package = {
   category: Category
   title: string
   coverUrl: string
+  mediaUrls?: string[]
   basePrice: number
   description?: string
   deliverables?: string
@@ -75,4 +77,3 @@ export type Booking = {
   createdAt: number
   updatedAt?: number
 }
-

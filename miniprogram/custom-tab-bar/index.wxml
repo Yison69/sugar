@@ -1,6 +1,6 @@
 <view class="tabbar">
   <view class="tabbarInner">
-    <block wx:for="{{list}}" wx:key="{{item.pagePath}}">
+    <block wx:for="{{list}}" wx:key="pagePath">
       <view class="tabItem {{selected===index ? 'active' : ''}}" bindtap="onChange" data-index="{{index}}" data-path="{{item.pagePath}}">
         <view class="dot" />
         <view class="label">{{item.text}}</view>
@@ -9,4 +9,3 @@
   </view>
   <view class="safe" />
 </view>
-

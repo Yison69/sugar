@@ -1,15 +1,20 @@
 <view class="page">
   <view class="content">
+    <view style="display:flex; align-items:center; justify-content:space-between; margin: 24rpx 0 18rpx;">
+      <view style="font-size: 34rpx; font-weight: 800;">我的预约</view>
+      <view class="btn-primary" style="padding: 14rpx 18rpx; font-size: 26rpx;" bindtap="goNew">新建预约</view>
+    </view>
+
     <view wx:if="{{loading}}" class="empty">
       <view class="emptyTitle">加载中…</view>
     </view>
 
     <view wx:if="{{!loading && items.length===0}}" class="empty">
       <view class="emptyTitle">暂无预约</view>
-      <view class="emptyDesc">在套餐详情页填写信息即可提交预约</view>
+      <view class="emptyDesc">点击右上角“新建预约”选择服务即可提交</view>
     </view>
 
-    <block wx:if="{{items.length>0}}" wx:for="{{items}}" wx:key="{{item.id}}">
+    <block wx:if="{{items.length>0}}" wx:for="{{items}}" wx:key="id">
       <view class="card">
         <view class="row">
           <view class="title">{{item.itemTitleSnapshot}}</view>

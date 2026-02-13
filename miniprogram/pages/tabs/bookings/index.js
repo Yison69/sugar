@@ -5,6 +5,9 @@ Page({
     loading: false,
     items: []
   },
+  goNew() {
+    wx.navigateTo({ url: '/pages/booking-new/index' })
+  },
   onShow() {
     const tab = this.getTabBar && this.getTabBar()
     if (tab && tab.setData) tab.setData({ selected: 2 })

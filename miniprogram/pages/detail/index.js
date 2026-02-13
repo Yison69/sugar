@@ -9,31 +9,22 @@ Page({
     id: '',
     selected: {},
     price: { base: 0, delta: 0, total: 0, lines: [] },
-    form: {
-      contactName: '',
-      contactPhone: '',
-      contactWechat: '',
-      shootingType: '',
-      scheduledAt: '',
-      remark: ''
-    },
-    wechatText: '（请在后台配置）',
-    wechatQrUrl: ''
+    heroHeightPx: 420,
+    swiperIndex: 0,
+    previewUrls: [],
+    thumbs: [],
+    selectedAssetUrls: [],
+    selectedAssets: []
   },
   onLoad(query) {
     this.setData({ id: query.id || '', type: query.type || 'work' })
+    try {
+      const info = wx.getSystemInfoSync()
+      const w = Number(info.windowWidth || 0)
+      const h = Math.round(w * 1.25)
+      if (h > 0) this.setData({ heroHeightPx: h })
+    } catch (_) {}
     this.load()
-    callMpApi('getContactConfig', {})
-      .then((res) => {
-        const { wechatText, wechatQrUrl } = res.result || {}
-        const raw = wechatQrUrl || ''
-        return Promise.resolve()
-          .then(async () => {
-            const resolved = isCloudFileId(raw) ? (await resolveTempUrls([raw]))[0] : raw
-            this.setData({ wechatText: wechatText || '（请在后台配置）', wechatQrUrl: resolved || '' })
-          })
-      })
-      .catch(() => {})
   },
   load() {
     this.setData({ loading: true })
@@ -50,6 +41,13 @@ Page({
             const urls = []
             if (normalized.coverUrl) urls.push(normalized.coverUrl)
             for (const m of normalized.mediaList || []) urls.push(m.url)
+            if (normalized.type === 'package') {
+              for (const g of normalized.optionGroups || []) {
+                for (const it of g.items || []) {
+                  for (const u of it.assetUrls || []) urls.push(u)
+                }
+              }
+            }
             const cloudUrls = urls.filter(isCloudFileId)
             const resolved = await resolveTempUrls(cloudUrls)
             const map = new Map()
@@ -60,13 +58,33 @@ Page({
               mediaList: (normalized.mediaList || []).map((x) => ({
                 ...x,
                 url: isCloudFileId(x.url) ? map.get(x.url) || x.url : x.url
-              }))
+              })),
+              optionGroups:
+                normalized.type === 'package'
+                  ? (normalized.optionGroups || []).map((g) => ({
+                      ...g,
+                      items: (g.items || []).map((it) => ({
+                        ...it,
+                        assetUrls: (it.assetUrls || []).map((u) => (isCloudFileId(u) ? map.get(u) || u : u)),
+                      })),
+                    }))
+                  : normalized.optionGroups
             }
+
+            const previewUrls = (patched.mediaList || []).filter((m) => m && m.kind === 'image' && m.url).map((m) => m.url)
+            const thumbs = (patched.mediaList || []).map((m, index) => ({
+              index,
+              kind: m.kind,
+              url: m.url
+            }))
             if (patched.type === 'package') {
               const init = this.initDefaultSelection(patched)
-              this.setData({ item: init.item, selected: init.selected }, () => this.recalc())
+              this.setData(
+                { item: init.item, selected: init.selected, previewUrls, thumbs, swiperIndex: 0 },
+                () => this.recalc(),
+              )
             } else {
-              this.setData({ item: patched, selected: {} }, () => this.recalc())
+              this.setData({ item: patched, selected: {}, previewUrls, thumbs, swiperIndex: 0 }, () => this.recalc())
             }
           })
       })
@@ -78,12 +96,32 @@ Page({
         this.setData({ loading: false })
       })
   },
+  onSwiperChange(e) {
+    const idx = e && e.detail ? Number(e.detail.current || 0) : 0
+    this.setData({ swiperIndex: idx })
+  },
+  onPreviewMedia(e) {
+    const idx = e && e.currentTarget && e.currentTarget.dataset ? Number(e.currentTarget.dataset.index || 0) : 0
+    const item = this.data.item
+    const media = item && item.mediaList ? item.mediaList[idx] : null
+    if (!media || media.kind !== 'image') return
+    const urls = this.data.previewUrls || []
+    if (!urls.length) return
+    wx.previewImage({ current: media.url, urls })
+  },
+  onPreviewOptionAsset(e) {
+    const url = e && e.currentTarget && e.currentTarget.dataset ? String(e.currentTarget.dataset.url || '') : ''
+    if (!url) return
+    const urls = (this.data.selectedAssetUrls || []).filter(Boolean)
+    if (!urls.length) return
+    wx.previewImage({ current: url, urls })
+  },
   normalizeItem(raw) {
     const mediaUrls = raw.mediaUrls || raw.imageUrls || []
     const mediaList = (mediaUrls || []).map((url) => {
       const u = String(url || '')
       const lower = u.toLowerCase()
-      const kind = lower.endsWith('.mp4') ? 'video' : 'image'
+      const kind = lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.webm') ? 'video' : 'image'
       return { url: u, kind }
     })
 
@@ -153,12 +191,14 @@ Page({
   recalc() {
     const item = this.data.item
     if (!item || item.type !== 'package') {
-      this.setData({ price: { base: 0, delta: 0, total: 0, lines: [] } })
+      this.setData({ price: { base: 0, delta: 0, total: 0, lines: [] }, selectedAssetUrls: [], selectedAssets: [] })
       return
     }
     const base = Number(item.basePrice || 0)
     const lines = []
     let delta = 0
+    const selectedAssetUrls = []
+    const selectedAssets = []
     for (const g of item.optionGroups || []) {
       const sel = this.data.selected[g.id]
       const pickIds = Array.isArray(sel) ? sel : sel ? [sel] : []
@@ -168,46 +208,16 @@ Page({
         const d = Number(it.deltaPrice || 0)
         delta += d
         lines.push({ name: `${g.name}：${it.name}`, delta: d })
+        for (const u of it.assetUrls || []) {
+          const s = String(u || '').trim()
+          if (!s) continue
+          const lower = s.toLowerCase()
+          const kind = lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.webm') ? 'video' : 'image'
+          selectedAssets.push({ url: s, kind })
+          if (kind === 'image') selectedAssetUrls.push(s)
+        }
       }
     }
-    this.setData({ price: { base, delta, total: base + delta, lines } })
+    this.setData({ price: { base, delta, total: base + delta, lines }, selectedAssetUrls, selectedAssets })
   },
-  onInput(e) {
-    const field = e.currentTarget.dataset.field
-    this.setData({ form: { ...this.data.form, [field]: e.detail.value } })
-  },
-  submitBooking() {
-    if (!this.data.item) return
-    const f = this.data.form
-    if (!f.contactName || !f.contactPhone || !f.contactWechat || !f.shootingType || !f.scheduledAt) {
-      wx.showToast({ title: '请完善预约信息', icon: 'none' })
-      return
-    }
-    const payload = {
-      itemType: this.data.item.type,
-      itemId: this.data.item.id,
-      itemTitleSnapshot: this.data.item.title,
-      selectedOptionsSnapshot: this.data.item.type === 'package' ? this.data.selected : null,
-      priceSnapshot: this.data.item.type === 'package' ? this.data.price : null,
-      contactName: f.contactName,
-      contactPhone: f.contactPhone,
-      contactWechat: f.contactWechat,
-      shootingType: f.shootingType,
-      scheduledAt: f.scheduledAt,
-      remark: f.remark
-    }
-    wx.showLoading({ title: '提交中…' })
-    callMpApi('createBooking', payload)
-      .then(() => {
-        wx.hideLoading()
-        wx.showToast({ title: '预约已提交', icon: 'success' })
-        setTimeout(() => {
-          wx.switchTab({ url: '/pages/tabs/bookings/index' })
-        }, 600)
-      })
-      .catch((err) => {
-        wx.hideLoading()
-        wx.showToast({ title: (err && err.message) || '提交失败', icon: 'none' })
-      })
-  }
 })

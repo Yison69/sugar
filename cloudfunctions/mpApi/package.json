@@ -4,8 +4,6 @@
   "private": true,
   "main": "index.js",
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.1",
-    "undici": "^6.21.0",
     "wx-server-sdk": "latest"
   }
 }

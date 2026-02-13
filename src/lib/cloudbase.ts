@@ -26,7 +26,10 @@ function deriveEnvIdFromHostname(hostname: string) {
 function toErrorMessage(err: unknown) {
   if (err instanceof Error) return err.message
   if (typeof err === 'string') return err
-  if (err && typeof err === 'object' && 'message' in err) return String((err as any).message)
+  if (err && typeof err === 'object' && 'message' in err) {
+    const m = (err as { message?: unknown }).message
+    return String(m)
+  }
   try {
     return JSON.stringify(err)
   } catch {
@@ -34,20 +37,28 @@ function toErrorMessage(err: unknown) {
   }
 }
 
-function createAuth(app: any) {
-  if (!app || typeof app.auth !== 'function') return null
+function createAuth(app: unknown) {
+  if (!app || typeof app !== 'object') return null
+  const a = app as { auth?: (opts?: { persistence?: string }) => unknown }
+  if (typeof a.auth !== 'function') return null
   try {
-    return app.auth({ persistence: 'local' })
+    return a.auth({ persistence: 'local' })
   } catch {
     try {
-      return app.auth()
+      return a.auth()
     } catch {
       return null
     }
   }
 }
 
-async function ensureSignedIn(auth: any) {
+type CloudbaseAuth = {
+  getLoginState?: () => Promise<unknown>
+  signInAnonymously?: () => Promise<unknown>
+  anonymousAuthProvider?: () => { signIn: () => Promise<unknown> }
+}
+
+async function ensureSignedIn(auth: CloudbaseAuth | null) {
   if (!auth) return
 
   try {
@@ -56,6 +67,7 @@ async function ensureSignedIn(auth: any) {
       if (loginState) return
     }
   } catch {
+    void 0
   }
 
   if (typeof auth.signInAnonymously === 'function') {
@@ -83,7 +95,7 @@ export async function getCloudbaseApp() {
 
     const clientId = (cfg.cloudbaseClientId || ((import.meta.env.VITE_CLOUDBASE_CLIENT_ID as string | undefined) ?? '').trim() || deriveClientId(env)).trim()
 
-    const app = cloudbase.init({ env, clientId: clientId || undefined } as any)
+    const app = cloudbase.init(clientId ? { env, clientId } : { env })
     const auth = createAuth(app)
     try {
       await ensureSignedIn(auth)

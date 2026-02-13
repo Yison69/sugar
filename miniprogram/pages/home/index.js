@@ -58,7 +58,13 @@ Page({
     skRight: []
   },
   onLoad(options) {
-    const category = options && options.category
+    const rawCategory = options && options.category
+    let category = rawCategory
+    if (typeof category === 'string') {
+      try {
+        category = decodeURIComponent(category)
+      } catch (_) {}
+    }
     const mode = options && options.mode
     const typeLocked = mode === 'work' || mode === 'package'
     const currentType = mode === 'work' ? 'work' : mode === 'package' ? 'package' : this.data.currentType
@@ -72,8 +78,7 @@ Page({
       typeLocked
     })
     if (typeLocked) {
-      const t = currentType === 'package' ? '套餐' : '作品'
-      wx.setNavigationBarTitle({ title: `${currentCategory}${t}` })
+      wx.setNavigationBarTitle({ title: currentType === 'package' ? '服务' : '作品' })
     } else {
       wx.setNavigationBarTitle({ title: '摄影服务' })
     }
@@ -114,21 +119,6 @@ Page({
         if (this._loadSeq !== seq) return
         this.setData({ loading: false })
       })
-  },
-  onSelectCategory(e) {
-    const v = e.currentTarget.dataset.value
-    this.setData({ currentCategory: v })
-    haptic()
-    wx.pageScrollTo({ scrollTop: 0, duration: 180 })
-    this.load()
-  },
-  onSelectType(e) {
-    if (this.data.typeLocked) return
-    const v = e.currentTarget.dataset.value
-    this.setData({ currentType: v })
-    haptic()
-    wx.pageScrollTo({ scrollTop: 0, duration: 180 })
-    this.load()
   },
   openDetail(e) {
     const { id, type } = e.currentTarget.dataset

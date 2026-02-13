@@ -63,8 +63,7 @@ export default function CloudUploadButton({
       >
         {uploading ? (percent != null ? `上传中 ${percent}%` : '上传中…') : label}
       </Button>
-      <div className="text-xs text-zinc-500">上传后会自动回填 `cloud://` fileID</div>
+      <div className="text-xs text-zinc-500">上传后会自动回填可访问的 URL / fileID</div>
     </div>
   )
 }
-

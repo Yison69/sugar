@@ -40,15 +40,21 @@ export async function uploadToCloudStorage(
     return { fileID: json.fileID as string, cloudPath: (json.cloudPath || '') as string }
   }
 
-  const app: any = await getCloudbaseApp()
+  const app = (await getCloudbaseApp()) as unknown as {
+    uploadFile: (opts: {
+      cloudPath: string
+      filePath: File
+      onUploadProgress?: (e: ProgressEvent) => void
+    }) => Promise<{ fileID: string }>
+  }
   const name = safeFileName(file.name)
   const cloudPath = `${opts.prefix}/${Date.now()}_${rand()}_${name}`
   const res = await app.uploadFile({
     cloudPath,
     filePath: file,
     onUploadProgress: (e: ProgressEvent) => {
-      const total = (e && (e as any).total) || 0
-      const loaded = (e && (e as any).loaded) || 0
+      const total = e.total || 0
+      const loaded = e.loaded || 0
       if (!total) return
       const pct = Math.max(0, Math.min(100, Math.round((loaded * 100) / total)))
       opts.onProgress?.(pct)

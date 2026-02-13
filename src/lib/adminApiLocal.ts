@@ -9,7 +9,7 @@ function nanoid(size = 12) {
 export type AdminLoginResponse = { token: string }
 export type ContactConfig = { wechatText: string; wechatQrUrl: string }
 
-type LocalState = {
+export type LocalState = {
   adminUser?: { username: string; password: string }
   contact?: ContactConfig
   works: Work[]
