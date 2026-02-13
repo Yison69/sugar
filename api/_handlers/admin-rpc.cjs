@@ -44,7 +44,9 @@ async function handleLogin(sb, data) {
   const password = String((data && data.password) || '')
   if (!username || !password) return { error: '参数错误' }
 
-  const q = throwIfError(await sb.from('admin_users').select('id, username, password_hash').eq('username', username).single())
+  const q = throwIfError(
+    await sb.from('admin_users').select('id, username, password_hash').eq('username', username).single(),
+  )
   const u = q.data
   const okPwd = await bcrypt.compare(password, u.password_hash)
   if (!okPwd) return { error: '账号或密码错误' }
@@ -243,4 +245,3 @@ module.exports = async (req, res) => {
     return err(res, msg)
   }
 }
-

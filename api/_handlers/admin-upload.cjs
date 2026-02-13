@@ -44,4 +44,3 @@ module.exports = async (req, res) => {
   const url = (pub && pub.data && pub.data.publicUrl) || ''
   return ok(res, { fileID: url, cloudPath: objectPath })
 }
-

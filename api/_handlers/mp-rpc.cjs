@@ -68,7 +68,9 @@ async function listItems(sb, body) {
   const ids = items.map((x) => x.id)
   if (!ids.length) return { items: [] }
 
-  const likesRes = throwIfError(await sb.from('likes').select('target_type, target_id').eq('user_id', userId).in('target_id', ids))
+  const likesRes = throwIfError(
+    await sb.from('likes').select('target_type, target_id').eq('user_id', userId).in('target_id', ids),
+  )
   const likedSet = new Set((likesRes.data || []).map((l) => `${l.target_type}:${l.target_id}`))
 
   return { items: items.map((x) => ({ ...x, isLiked: likedSet.has(`${x.type}:${x.id}`) })) }
@@ -87,7 +89,13 @@ async function getItemDetail(sb, body) {
   let isLiked = false
   try {
     const userId = requireUserId(body)
-    const lr = await sb.from('likes').select('id').eq('user_id', userId).eq('target_type', type).eq('target_id', id).limit(1)
+    const lr = await sb
+      .from('likes')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('target_type', type)
+      .eq('target_id', id)
+      .limit(1)
     isLiked = !!((lr.data || []).length)
   } catch {
   }
@@ -126,7 +134,13 @@ async function toggleLike(sb, body) {
   const targetType = String((body && body.targetType) || '').trim()
   if (!targetId || (targetType !== 'work' && targetType !== 'package')) throw new Error('参数错误')
 
-  const found = await sb.from('likes').select('id').eq('user_id', userId).eq('target_type', targetType).eq('target_id', targetId).limit(1)
+  const found = await sb
+    .from('likes')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('target_type', targetType)
+    .eq('target_id', targetId)
+    .limit(1)
   const exists = (found.data || [])[0]
 
   const table = targetType === 'package' ? 'packages' : 'works'
@@ -159,7 +173,12 @@ async function createBooking(sb, body) {
   let computedPrice = payload.priceSnapshot || null
 
   if (payload.itemType === 'package') {
-    const pkgRes = await sb.from('packages').select('*').eq('id', payload.itemId).eq('is_published', true).single()
+    const pkgRes = await sb
+      .from('packages')
+      .select('*')
+      .eq('id', payload.itemId)
+      .eq('is_published', true)
+      .single()
     if (pkgRes.error || !pkgRes.data) throw new Error('套餐不存在或已下架')
     const pkg = pkgRes.data
     const optionGroups = pkg.option_groups || []
@@ -212,7 +231,9 @@ async function createBooking(sb, body) {
 
 async function getMyBookings(sb, body) {
   const userId = requireUserId(body)
-  const r = throwIfError(await sb.from('bookings').select('*').eq('user_openid', userId).order('created_at', { ascending: false }).limit(50))
+  const r = throwIfError(
+    await sb.from('bookings').select('*').eq('user_openid', userId).order('created_at', { ascending: false }).limit(50),
+  )
   const items = (r.data || []).map((d) => ({
     id: d.id,
     itemType: d.item_type,
@@ -252,4 +273,3 @@ module.exports = async (req, res) => {
     return ok(res, { error: msg })
   }
 }
-

@@ -1,4 +1,3 @@
-import handler from './rpc.cjs'
+import handler from '../_handlers/admin-rpc.cjs'
 
 export default handler
-
