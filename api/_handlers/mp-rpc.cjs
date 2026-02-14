@@ -121,6 +121,7 @@ async function getItemDetail(sb, body) {
         ...base,
         basePrice: Number(d.base_price || 0),
         deliverables: d.deliverables || '',
+        includedGroups: d.included_groups || [],
         optionGroups: d.option_groups || [],
       },
     }

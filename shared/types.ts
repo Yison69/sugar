@@ -7,6 +7,7 @@ export type PriceOp = 'replace' | 'add' | 'minus'
 export type PackageOptionItem = {
   id: string
   name: string
+  description?: string
   op: PriceOp
   deltaPrice: number
   maxQty?: number
@@ -20,6 +21,19 @@ export type PackageOptionGroup = {
   required: boolean
   selectMode: 'single' | 'multi'
   items: PackageOptionItem[]
+}
+
+export type PackageIncludeItem = {
+  id: string
+  name: string
+  description?: string
+  assetUrls?: string[]
+}
+
+export type PackageIncludeGroup = {
+  id: string
+  name: string
+  items: PackageIncludeItem[]
 }
 
 export type Work = {
@@ -44,6 +58,7 @@ export type Package = {
   basePrice: number
   description?: string
   deliverables?: string
+  includedGroups?: PackageIncludeGroup[]
   optionGroups: PackageOptionGroup[]
   isPublished: boolean
   likeCount: number

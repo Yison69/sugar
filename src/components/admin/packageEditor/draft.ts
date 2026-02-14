@@ -1,4 +1,4 @@
-import type { Category, Package, PackageOptionGroup } from '../../../../shared/types'
+import type { Category, Package, PackageIncludeGroup, PackageOptionGroup } from '../../../../shared/types'
 
 export type PackageDraft = {
   id?: string
@@ -10,6 +10,7 @@ export type PackageDraft = {
   description: string
   deliverables: string
   isPublished: boolean
+  includedGroups: PackageIncludeGroup[]
   optionGroups: PackageOptionGroup[]
 }
 
@@ -25,10 +26,19 @@ export const toPackageDraft = (p?: Package): PackageDraft =>
         description: p.description ?? '',
         deliverables: p.deliverables ?? '',
         isPublished: p.isPublished,
+        includedGroups: (p.includedGroups ?? []).map((g) => ({
+          ...g,
+          items: (g.items || []).map((it) => ({
+            ...it,
+            description: it.description ?? '',
+            assetUrls: Array.isArray(it.assetUrls) ? it.assetUrls : [],
+          })),
+        })),
         optionGroups: (p.optionGroups ?? []).map((g) => ({
           ...g,
           items: (g.items || []).map((it) => ({
             ...it,
+            description: it.description ?? '',
             assetUrls: Array.isArray(it.assetUrls) ? it.assetUrls : [],
           })),
         })),
@@ -42,5 +52,6 @@ export const toPackageDraft = (p?: Package): PackageDraft =>
         description: '',
         deliverables: '',
         isPublished: true,
+        includedGroups: [],
         optionGroups: [],
       }

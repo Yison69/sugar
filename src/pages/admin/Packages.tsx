@@ -140,12 +140,25 @@ export default function AdminPackages() {
               if (!draft.coverUrl.trim()) throw new Error('封面地址不能为空')
               if (!Number.isFinite(basePrice) || basePrice < 0) throw new Error('基础价不合法')
               const mediaUrls = (draft.mediaUrls || []).map((u) => String(u || '').trim()).filter(Boolean)
+
+              const cleanedIncluded = (draft.includedGroups || []).map((g) => ({
+                ...g,
+                name: String(g.name || '').trim(),
+                items: (g.items || []).map((it) => ({
+                  ...it,
+                  name: String(it.name || '').trim(),
+                  description: String(it.description || '').trim() || undefined,
+                  assetUrls: (it.assetUrls || []).map((u) => String(u || '').trim()).filter(Boolean),
+                })),
+              }))
+
               const cleanedGroups = draft.optionGroups.map((g) => ({
                 ...g,
                 name: g.name.trim(),
                 items: g.items.map((it, idx) => ({
                   ...it,
                   name: it.name.trim(),
+                  description: String(it.description || '').trim() || undefined,
                   op: g.op,
                   deltaPrice: idx === 0 ? 0 : Number(it.deltaPrice),
                   assetUrls: (it.assetUrls || []).map((u) => String(u || '').trim()).filter(Boolean),
@@ -168,6 +181,7 @@ export default function AdminPackages() {
                 basePrice,
                 description: draft.description.trim() || undefined,
                 deliverables: draft.deliverables.trim() || undefined,
+                includedGroups: cleanedIncluded,
                 optionGroups: cleanedGroups,
                 isPublished: draft.isPublished,
               })

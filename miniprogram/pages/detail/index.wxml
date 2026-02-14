@@ -72,6 +72,33 @@
     </view>
 
     <view wx:if="{{item.type==='package'}}" style="padding: 0 24rpx;">
+      <view style="margin: 20rpx 0 12rpx; font-size: 30rpx; font-weight: 900;">套餐内容</view>
+
+      <block wx:for="{{item.includedGroups}}" wx:key="id" wx:for-item="incGroup">
+        <view class="card" style="padding: 24rpx; margin-bottom: 16rpx;">
+          <view style="display:flex; align-items:flex-end; justify-content:space-between; gap: 16rpx;">
+            <view style="font-size: 30rpx; font-weight: 900;">{{incGroup.name}}</view>
+          </view>
+
+          <view style="margin-top: 16rpx; display:grid; grid-template-columns: 1fr 1fr; gap: 12rpx;">
+            <block wx:for="{{incGroup.items}}" wx:key="id" wx:for-item="inc">
+              <view style="border-radius: 18rpx; overflow:hidden; border: 2rpx solid #e5e7eb; background:#fff;">
+                <view style="position:relative; width:100%; height: 180rpx; background:#f3f4f6;">
+                  <image wx:if="{{inc.thumbUrl && inc.thumbKind==='image'}}" src="{{inc.thumbUrl}}" mode="aspectFit" style="width:100%; height:100%;" catchtap="onPreviewOptionThumb" data-url="{{inc.thumbUrl}}" data-urls="{{inc.imageUrls}}" />
+                  <view wx:if="{{inc.thumbUrl && inc.thumbKind==='video'}}" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#fff; background: rgba(0,0,0,0.25); font-size: 24rpx;">视频</view>
+                </view>
+                <view style="padding: 14rpx 14rpx 12rpx; height: 140rpx; box-sizing: border-box;">
+                  <view style="font-size: 26rpx; font-weight: 800; color:#111827; overflow:hidden; text-overflow: ellipsis; white-space: nowrap;">{{inc.name}}</view>
+                  <view wx:if="{{inc.description}}" style="margin-top: 6rpx; font-size: 22rpx; color:#6b7280; line-height: 30rpx; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;">{{inc.description}}</view>
+                </view>
+              </view>
+            </block>
+          </view>
+        </view>
+      </block>
+
+      <view style="margin: 20rpx 0 12rpx; font-size: 30rpx; font-weight: 900;">可选项</view>
+
       <block wx:for="{{item.optionGroups}}" wx:key="id" wx:for-item="group">
         <view class="card" style="padding: 24rpx; margin-bottom: 16rpx;">
           <view style="display:flex; align-items:flex-end; justify-content:space-between; gap: 16rpx;">
@@ -88,11 +115,12 @@
                 data-itemid="{{opt.id}}"
               >
                 <view style="position:relative; width:100%; height: 180rpx; background:#f3f4f6;">
-                  <image wx:if="{{opt.thumbUrl && opt.thumbKind==='image'}}" src="{{opt.thumbUrl}}" mode="aspectFill" style="width:100%; height:100%;" />
+                  <image wx:if="{{opt.thumbUrl && opt.thumbKind==='image'}}" src="{{opt.thumbUrl}}" mode="aspectFit" style="width:100%; height:100%;" catchtap="onPreviewOptionThumb" data-url="{{opt.thumbUrl}}" data-urls="{{opt.imageUrls}}" />
                   <view wx:if="{{opt.thumbUrl && opt.thumbKind==='video'}}" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#fff; background: rgba(0,0,0,0.25); font-size: 24rpx;">视频</view>
                 </view>
-                <view style="padding: 14rpx 14rpx 12rpx;">
+                <view style="padding: 14rpx 14rpx 12rpx; height: 140rpx; box-sizing: border-box;">
                   <view style="font-size: 26rpx; font-weight: 800; color:#111827; overflow:hidden; text-overflow: ellipsis; white-space: nowrap;">{{opt.name}}</view>
+                  <view wx:if="{{opt.description}}" style="margin-top: 6rpx; font-size: 22rpx; color:#6b7280; line-height: 30rpx; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;">{{opt.description}}</view>
                   <view style="margin-top: 8rpx; font-size: 24rpx; font-weight: 800; color:#ef4444;">{{opt.deltaText}}</view>
                 </view>
               </view>

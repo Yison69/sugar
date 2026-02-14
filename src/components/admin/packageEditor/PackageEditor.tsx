@@ -2,6 +2,7 @@ import type { Category } from '../../../../shared/types'
 import { CATEGORIES } from '@/lib/constants'
 import Input from '@/components/ui/Input'
 import Textarea from '@/components/ui/Textarea'
+import PackageIncludesEditor from '@/components/admin/packageEditor/PackageIncludesEditor'
 import PackageOptionsEditor from '@/components/admin/packageEditor/PackageOptionsEditor'
 import type { PackageDraft } from '@/components/admin/packageEditor/draft'
 import CloudUploadButton from '@/components/admin/CloudUploadButton'
@@ -81,6 +82,11 @@ export default function PackageEditor({ draft, onChange }: { draft: PackageDraft
           <Textarea value={draft.deliverables} onChange={(e) => onChange({ ...draft, deliverables: e.target.value })} />
         </div>
       </div>
+
+      <PackageIncludesEditor
+        groups={draft.includedGroups}
+        onChange={(includedGroups) => onChange({ ...draft, includedGroups })}
+      />
 
       <PackageOptionsEditor groups={draft.optionGroups} onChange={(groups) => onChange({ ...draft, optionGroups: groups })} />
     </div>

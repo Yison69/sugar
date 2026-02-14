@@ -147,6 +147,7 @@ export const adminApiLocal = {
       basePrice: pkg.basePrice,
       description: pkg.description ?? '',
       deliverables: pkg.deliverables ?? '',
+      includedGroups: pkg.includedGroups ?? [],
       optionGroups: pkg.optionGroups,
       isPublished: pkg.isPublished ?? true,
       likeCount: 0,

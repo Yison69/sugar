@@ -46,6 +46,11 @@ Page({
                   for (const u of it.assetUrls || []) urls.push(u)
                 }
               }
+              for (const g of normalized.includedGroups || []) {
+                for (const it of g.items || []) {
+                  for (const u of it.assetUrls || []) urls.push(u)
+                }
+              }
             }
             const cloudUrls = urls.filter(isCloudFileId)
             const resolved = await resolveTempUrls(cloudUrls)
@@ -68,6 +73,17 @@ Page({
                       })),
                     }))
                   : normalized.optionGroups
+              ,
+              includedGroups:
+                normalized.type === 'package'
+                  ? (normalized.includedGroups || []).map((g) => ({
+                      ...g,
+                      items: (g.items || []).map((it) => ({
+                        ...it,
+                        assetUrls: (it.assetUrls || []).map((u) => (isCloudFileId(u) ? map.get(u) || u : u)),
+                      })),
+                    }))
+                  : normalized.includedGroups
             }
 
             const previewUrls = (patched.mediaList || []).filter((m) => m && m.kind === 'image' && m.url).map((m) => m.url)
@@ -138,6 +154,13 @@ Page({
 
     this.setData({ item: { ...item, optionGroups }, selected: nextSelected }, () => this.recalc())
   },
+  onPreviewOptionThumb(e) {
+    const url = e && e.currentTarget && e.currentTarget.dataset ? String(e.currentTarget.dataset.url || '') : ''
+    const urls = e && e.currentTarget && e.currentTarget.dataset ? e.currentTarget.dataset.urls : null
+    const list = Array.isArray(urls) ? urls.map((u) => String(u || '')).filter(Boolean) : []
+    if (!url || !list.length) return
+    wx.previewImage({ current: url, urls: list })
+  },
   normalizeItem(raw) {
     const mediaUrls = raw.mediaUrls || raw.imageUrls || []
     const mediaList = (mediaUrls || []).map((url) => {
@@ -147,22 +170,50 @@ Page({
       return { url: u, kind }
     })
 
+    const includedGroups = (raw.includedGroups || []).map((g) => {
+      const items = (g.items || []).map((it) => {
+        const assetUrls = Array.isArray(it.assetUrls) ? it.assetUrls : []
+        const imageUrls = assetUrls
+          .map((u) => String(u || '').trim())
+          .filter(Boolean)
+          .filter((u) => {
+            const lower = u.toLowerCase()
+            return !(lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.webm'))
+          })
+        const first = assetUrls.length ? String(assetUrls[0] || '') : ''
+        const thumbUrl = imageUrls[0] || first
+        const thumbLower = thumbUrl.toLowerCase()
+        const thumbKind = thumbLower.endsWith('.mp4') || thumbLower.endsWith('.mov') || thumbLower.endsWith('.webm') ? 'video' : 'image'
+        return { ...it, assetUrls, imageUrls, thumbUrl, thumbKind }
+      })
+      return { ...g, items }
+    })
+
     const optionGroups = (raw.optionGroups || []).map((g) => {
       const selectMode = g.selectMode || (g.op === 'replace' ? 'single' : 'single')
       const items = (g.items || []).map((it, idx) => {
         const assetUrls = Array.isArray(it.assetUrls) ? it.assetUrls : []
-        const thumbUrl = assetUrls.length ? String(assetUrls[0] || '') : ''
+        const imageUrls = assetUrls
+          .map((u) => String(u || '').trim())
+          .filter(Boolean)
+          .filter((u) => {
+            const lower = u.toLowerCase()
+            return !(lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.webm'))
+          })
+
+        const first = assetUrls.length ? String(assetUrls[0] || '') : ''
+        const thumbUrl = imageUrls[0] || first
         const thumbLower = thumbUrl.toLowerCase()
         const thumbKind = thumbLower.endsWith('.mp4') || thumbLower.endsWith('.mov') || thumbLower.endsWith('.webm') ? 'video' : 'image'
 
         const d = idx === 0 ? 0 : Number(it.deltaPrice || 0)
         const deltaText = d >= 0 ? `+¥${Math.abs(d)}` : `-¥${Math.abs(d)}`
-        return { ...it, deltaPrice: d, deltaText, checked: false, assetUrls, thumbUrl, thumbKind }
+        return { ...it, deltaPrice: d, deltaText, checked: false, assetUrls, imageUrls, thumbUrl, thumbKind }
       })
       return { ...g, selectMode, items }
     })
 
-    return { ...raw, mediaList, optionGroups }
+    return { ...raw, mediaList, includedGroups, optionGroups }
   },
   initDefaultSelection(item) {
     const selected = {}

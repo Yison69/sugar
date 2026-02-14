@@ -1,5 +1,6 @@
 import type { PackageOptionItem, PriceOp } from '../../../../shared/types'
 import Input from '@/components/ui/Input'
+import Textarea from '@/components/ui/Textarea'
 import OptionAssetsEditor from '@/components/admin/packageEditor/OptionAssetsEditor'
 
 export default function OptionItemRow({
@@ -20,6 +21,10 @@ export default function OptionItemRow({
         <div>
           <div className="mb-1 text-xs font-medium text-zinc-700">名称</div>
           <Input value={item.name} onChange={(e) => onChange({ name: e.target.value })} />
+        </div>
+        <div className="md:col-span-3">
+          <div className="mb-1 text-xs font-medium text-zinc-700">说明（可选）</div>
+          <Textarea value={item.description ?? ''} onChange={(e) => onChange({ description: e.target.value })} />
         </div>
         <div>
           <div className="mb-1 text-xs font-medium text-zinc-700">价格变化（元）</div>

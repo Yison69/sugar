@@ -1,12 +1,11 @@
-import type { PackageOptionItem } from '../../../../shared/types'
 import MediaUrlListEditor from '@/components/admin/MediaUrlListEditor'
 
 export default function OptionAssetsEditor({
   item,
   onChange,
 }: {
-  item: PackageOptionItem
-  onChange: (patch: Partial<PackageOptionItem>) => void
+  item: { id: string; assetUrls?: string[] }
+  onChange: (patch: { assetUrls: string[] }) => void
 }) {
   const urls = Array.isArray(item.assetUrls) ? item.assetUrls : []
   return (
@@ -21,4 +20,3 @@ export default function OptionAssetsEditor({
     />
   )
 }
-
