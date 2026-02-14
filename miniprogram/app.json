@@ -2,12 +2,9 @@
   "pages": [
     "pages/tabs/home/index",
     "pages/tabs/works/index",
-    "pages/tabs/bookings/index",
     "pages/tabs/me/index",
     "pages/home/index",
-    "pages/detail/index",
-    "pages/booking-new/index",
-    "pages/bookings/index"
+    "pages/detail/index"
   ],
   "window": {
     "navigationBarTitleText": "摄影服务",
@@ -28,10 +25,6 @@
       {
         "pagePath": "pages/tabs/works/index",
         "text": "作品"
-      },
-      {
-        "pagePath": "pages/tabs/bookings/index",
-        "text": "预约"
       },
       {
         "pagePath": "pages/tabs/me/index",

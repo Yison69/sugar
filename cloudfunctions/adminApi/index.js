@@ -686,12 +686,6 @@ exports.main = async (event) => {
     const id = decodeURIComponent(path.split('/')[4])
     return handlePackageById(event, id)
   }
-  if (path === '/api/admin/bookings') return handleBookings(event)
-  if (path.startsWith('/api/admin/bookings/') && path.endsWith('/status')) {
-    const parts = path.split('/')
-    const id = decodeURIComponent(parts[4])
-    return handleBookingStatus(event, id)
-  }
   if (path === '/api/admin/config/contact') return handleContactConfig(event)
 
   if (path === '/api/admin/upload' && event.httpMethod === 'POST') {

@@ -37,7 +37,7 @@ export default function AdminSettings() {
 
   return (
     <div>
-      <PageHeader title="预约页联系方式" />
+      <PageHeader title="联系方式" />
       {error ? <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
 
       {isLocal ? (
@@ -125,7 +125,7 @@ export default function AdminSettings() {
         </div>
 
         <div className="mt-4 flex items-center justify-between">
-          <div className="text-xs text-zinc-500">小程序预约页会展示以上信息，引导客户加你微信。</div>
+          <div className="text-xs text-zinc-500">小程序端“联系我/门店咨询”等入口会使用以上信息。</div>
           <div className="flex items-center gap-2">
             <button
               type="button"

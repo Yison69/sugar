@@ -51,7 +51,10 @@
         </view>
       </view>
 
-      <view wx:if="{{item.type==='package'}}" style="margin-top: 16rpx; font-size: 30rpx; font-weight: 800;">基础价：¥ {{item.basePrice}}</view>
+      <view wx:if="{{item.type==='package'}}" style="margin-top: 16rpx; display:flex; align-items:baseline; justify-content:space-between; gap: 16rpx;">
+        <view style="font-size: 24rpx; color:#6b7280;">基础价 ¥ {{item.basePrice}}</view>
+        <view style="font-size: 34rpx; font-weight: 900; color:#ef4444;">¥ {{price.total}}</view>
+      </view>
       <view wx:if="{{item.description}}" style="margin-top: 14rpx; font-size: 26rpx; color:#374151; line-height: 38rpx;">{{item.description}}</view>
     </view>
 
@@ -69,72 +72,35 @@
     </view>
 
     <view wx:if="{{item.type==='package'}}" style="padding: 0 24rpx;">
-      <block wx:for="{{item.optionGroups}}" wx:key="id">
+      <block wx:for="{{item.optionGroups}}" wx:key="id" wx:for-item="group">
         <view class="card" style="padding: 24rpx; margin-bottom: 16rpx;">
-          <view style="display:flex; align-items:center; justify-content:space-between;">
-            <view style="font-size: 30rpx; font-weight: 700;">{{item.name}}</view>
-            <view style="font-size: 22rpx; color:#6b7280;">{{item.required ? '必选' : '可选'}} · {{item.selectMode==='single' ? '单选' : '多选'}}</view>
+          <view style="display:flex; align-items:flex-end; justify-content:space-between; gap: 16rpx;">
+            <view style="font-size: 30rpx; font-weight: 900;">{{group.name}}</view>
+            <view style="font-size: 22rpx; color:#6b7280;">{{group.selectMode==='single' ? (group.required ? '请选1份' : '可选') : (group.required ? '请选择' : '可选')}} </view>
           </view>
 
-          <view style="margin-top: 16rpx;">
-            <radio-group wx:if="{{item.selectMode==='single'}}" data-groupid="{{item.id}}" bindchange="onRadioChange">
-              <view style="display:flex; flex-direction:column; gap: 12rpx;">
-                <block wx:for="{{item.items}}" wx:key="id">
-                  <label style="display:flex; align-items:center; justify-content:space-between; padding: 18rpx; border-radius: 16rpx; background:#f3f4f6;">
-                    <view style="display:flex; align-items:center; gap: 12rpx;">
-                      <radio value="{{item.id}}" checked="{{item.checked}}" />
-                      <view style="font-size: 26rpx;">{{item.name}}</view>
-                    </view>
-                    <view style="font-size: 24rpx; color:#6b7280;">{{item.deltaText}}</view>
-                  </label>
-                </block>
+          <view style="margin-top: 16rpx; display:grid; grid-template-columns: 1fr 1fr; gap: 12rpx;">
+            <block wx:for="{{group.items}}" wx:key="id" wx:for-item="opt">
+              <view
+                style="border-radius: 18rpx; overflow:hidden; border: 2rpx solid {{opt.checked ? '#ef4444' : '#e5e7eb'}}; background:#fff;"
+                bindtap="onTapOption"
+                data-groupid="{{group.id}}"
+                data-itemid="{{opt.id}}"
+              >
+                <view style="position:relative; width:100%; height: 180rpx; background:#f3f4f6;">
+                  <image wx:if="{{opt.thumbUrl && opt.thumbKind==='image'}}" src="{{opt.thumbUrl}}" mode="aspectFill" style="width:100%; height:100%;" />
+                  <view wx:if="{{opt.thumbUrl && opt.thumbKind==='video'}}" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#fff; background: rgba(0,0,0,0.25); font-size: 24rpx;">视频</view>
+                </view>
+                <view style="padding: 14rpx 14rpx 12rpx;">
+                  <view style="font-size: 26rpx; font-weight: 800; color:#111827; overflow:hidden; text-overflow: ellipsis; white-space: nowrap;">{{opt.name}}</view>
+                  <view style="margin-top: 8rpx; font-size: 24rpx; font-weight: 800; color:#ef4444;">{{opt.deltaText}}</view>
+                </view>
               </view>
-            </radio-group>
-
-            <checkbox-group wx:else data-groupid="{{item.id}}" bindchange="onCheckboxChange">
-              <view style="display:flex; flex-direction:column; gap: 12rpx;">
-                <block wx:for="{{item.items}}" wx:key="id">
-                  <label style="display:flex; align-items:center; justify-content:space-between; padding: 18rpx; border-radius: 16rpx; background:#f3f4f6;">
-                    <view style="display:flex; align-items:center; gap: 12rpx;">
-                      <checkbox value="{{item.id}}" checked="{{item.checked}}" />
-                      <view style="font-size: 26rpx;">{{item.name}}</view>
-                    </view>
-                    <view style="font-size: 24rpx; color:#6b7280;">{{item.deltaText}}</view>
-                  </label>
-                </block>
-              </view>
-            </checkbox-group>
+            </block>
           </view>
+
         </view>
       </block>
-    </view>
-
-    <view wx:if="{{item.type==='package' && selectedAssets.length>0}}" class="card" style="margin: 0 24rpx 24rpx; padding: 24rpx;">
-      <view style="font-size: 30rpx; font-weight: 800;">选项资源</view>
-
-      <view style="margin-top: 16rpx; display:flex; flex-direction:column; gap: 16rpx;">
-        <view style="display:flex; flex-wrap:wrap; gap: 12rpx;">
-          <block wx:for="{{selectedAssets}}" wx:key="url">
-            <block wx:if="{{item.kind==='image'}}">
-              <image
-                src="{{item.url}}"
-                mode="aspectFill"
-                style="width: 216rpx; height: 216rpx; border-radius: 18rpx; background:#e5e7eb;"
-                bindtap="onPreviewOptionAsset"
-                data-url="{{item.url}}"
-              />
-            </block>
-          </block>
-        </view>
-
-        <view>
-          <block wx:for="{{selectedAssets}}" wx:key="url">
-            <block wx:if="{{item.kind==='video'}}">
-              <video src="{{item.url}}" controls="true" style="width:100%; height: 420rpx; border-radius: 18rpx;"></video>
-            </block>
-          </block>
-        </view>
-      </view>
     </view>
   </view>
 

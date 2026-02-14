@@ -161,98 +161,6 @@ async function toggleLike(sb, body) {
   return { liked: true, likeCount: next }
 }
 
-async function createBooking(sb, body) {
-  const userId = requireUserId(body)
-  const payload = body && body.payload
-
-  const requiredKeys = ['contactName', 'contactPhone', 'shootingType', 'scheduledAt']
-  for (const k of requiredKeys) {
-    if (!payload || !payload[k]) throw new Error('请完善预约信息')
-  }
-
-  const itemType = payload.itemType || 'custom'
-  const itemId = payload.itemId || ''
-  const itemTitleSnapshot = payload.itemTitleSnapshot || payload.shootingType || '预约'
-
-  let computedSelected = payload.selectedOptionsSnapshot || null
-  let computedPrice = payload.priceSnapshot || null
-
-  if (itemType === 'package') {
-    if (!itemId) throw new Error('套餐不存在或已下架')
-    const pkgRes = await sb
-      .from('packages')
-      .select('*')
-      .eq('id', itemId)
-      .eq('is_published', true)
-      .single()
-    if (pkgRes.error || !pkgRes.data) throw new Error('套餐不存在或已下架')
-    const pkg = pkgRes.data
-    const optionGroups = pkg.option_groups || []
-    const selected = computedSelected || {}
-    for (const g of optionGroups) {
-      if (!g || !g.required) continue
-      const v = selected[g.id]
-      const okSel = Array.isArray(v) ? v.length > 0 : !!v
-      if (!okSel) throw new Error(`请完成必选项：${g.name}`)
-    }
-
-    const base = Number(pkg.base_price || 0)
-    let delta = 0
-    const lines = []
-    for (const g of optionGroups) {
-      const v = selected[g.id]
-      const pickIds = Array.isArray(v) ? v : v ? [v] : []
-      for (const pid of pickIds) {
-        const it = (g.items || []).find((x) => x.id === pid)
-        if (!it) continue
-        const d = Number(it.deltaPrice || 0)
-        delta += d
-        lines.push({ name: `${g.name}：${it.name}`, delta: d })
-      }
-    }
-    computedSelected = selected
-    computedPrice = { base, delta, total: base + delta, lines }
-  }
-
-  const row = {
-    user_openid: userId,
-    item_type: itemType,
-    item_id: itemId,
-    item_title_snapshot: itemTitleSnapshot,
-    selected_options_snapshot: computedSelected,
-    price_snapshot: computedPrice,
-    contact_name: payload.contactName,
-    contact_phone: payload.contactPhone,
-    contact_wechat: payload.contactWechat || '',
-    shooting_type: payload.shootingType,
-    scheduled_at: payload.scheduledAt,
-    remark: payload.remark || '',
-    status: '待确认',
-    created_at: nowIso(),
-    updated_at: nowIso(),
-  }
-  const ins = throwIfError(await sb.from('bookings').insert(row).select('id').single())
-  return { id: ins.data.id }
-}
-
-async function getMyBookings(sb, body) {
-  const userId = requireUserId(body)
-  const r = throwIfError(
-    await sb.from('bookings').select('*').eq('user_openid', userId).order('created_at', { ascending: false }).limit(50),
-  )
-  const items = (r.data || []).map((d) => ({
-    id: d.id,
-    itemType: d.item_type,
-    itemId: d.item_id,
-    itemTitleSnapshot: d.item_title_snapshot,
-    shootingType: d.shooting_type,
-    scheduledAt: d.scheduled_at,
-    status: d.status,
-    createdAt: d.created_at ? new Date(d.created_at).getTime() : Date.now(),
-  }))
-  return { items }
-}
-
 async function getContactConfig(sb) {
   const r = await sb.from('app_config').select('value').eq('key', 'contact').single()
   if (r.error || !r.data) return { wechatText: '', wechatQrUrl: '' }
@@ -270,8 +178,6 @@ module.exports = async (req, res) => {
     if (action === 'listItems') return ok(res, await listItems(sb, body.data || body))
     if (action === 'getItemDetail') return ok(res, await getItemDetail(sb, body.data || body))
     if (action === 'toggleLike') return ok(res, await toggleLike(sb, body.data || body))
-    if (action === 'createBooking') return ok(res, await createBooking(sb, body.data || body))
-    if (action === 'getMyBookings') return ok(res, await getMyBookings(sb, body.data || body))
     if (action === 'getContactConfig') return ok(res, await getContactConfig(sb))
     return ok(res, { error: 'Unknown action' })
   } catch (e) {

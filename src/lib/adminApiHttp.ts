@@ -1,4 +1,4 @@
-import type { Booking, BookingStatus, Package, Work } from '../../shared/types'
+import type { Package, Work } from '../../shared/types'
 
 type AdminLoginResponse = { token: string }
 type ContactConfig = { wechatText: string; wechatQrUrl: string }
@@ -88,10 +88,6 @@ export function createAdminApiHttp(base: string) {
     listPackages: (token: string) => request<{ items: Package[] }>(base, '/api/admin/rpc', { action: 'listPackages', data: {}, token }),
     upsertPackage: (token: string, pkg: unknown) => request<{ item: Package }>(base, '/api/admin/rpc', { action: 'upsertPackage', data: pkg, token }),
     deletePackage: (token: string, id: string) => request<{ ok: true }>(base, '/api/admin/rpc', { action: 'deletePackage', data: { id }, token }),
-
-    listBookings: (token: string) => request<{ items: Booking[] }>(base, '/api/admin/rpc', { action: 'listBookings', data: {}, token }),
-    updateBookingStatus: (token: string, id: string, status: BookingStatus, adminNote?: string) =>
-      request<{ item: Booking }>(base, '/api/admin/rpc', { action: 'updateBookingStatus', data: { id, status, adminNote }, token }),
 
     getContactConfig: (token: string) => request<ContactConfig>(base, '/api/admin/rpc', { action: 'getContactConfig', data: {}, token }),
     updateContactConfig: (token: string, cfg: ContactConfig) =>

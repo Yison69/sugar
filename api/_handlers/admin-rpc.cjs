@@ -119,28 +119,6 @@ function fromPackageRow(r) {
   }
 }
 
-function fromBookingRow(r) {
-  return {
-    id: r.id,
-    userOpenid: r.user_openid,
-    itemType: r.item_type,
-    itemId: r.item_id,
-    itemTitleSnapshot: r.item_title_snapshot,
-    selectedOptionsSnapshot: r.selected_options_snapshot || undefined,
-    priceSnapshot: r.price_snapshot || undefined,
-    contactName: r.contact_name,
-    contactPhone: r.contact_phone,
-    contactWechat: r.contact_wechat,
-    shootingType: r.shooting_type,
-    scheduledAt: r.scheduled_at,
-    remark: r.remark || '',
-    status: r.status,
-    adminNote: r.admin_note || '',
-    createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
-    updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : undefined,
-  }
-}
-
 async function handleAdminAction(sb, action, data, token) {
   requireAdmin(token)
 
@@ -184,26 +162,6 @@ async function handleAdminAction(sb, action, data, token) {
     if (!id) return { error: '参数错误' }
     throwIfError(await sb.from('packages').delete().eq('id', id))
     return { ok: true }
-  }
-
-  if (action === 'listBookings') {
-    const r = throwIfError(await sb.from('bookings').select('*').order('created_at', { ascending: false }))
-    return { items: (r.data || []).map(fromBookingRow) }
-  }
-  if (action === 'updateBookingStatus') {
-    const id = String((data && data.id) || '')
-    const status = String((data && data.status) || '')
-    const adminNote = data && 'adminNote' in data ? String(data.adminNote || '') : null
-    if (!id || !status) return { error: '参数错误' }
-    const u = throwIfError(
-      await sb
-        .from('bookings')
-        .update({ status, admin_note: adminNote, updated_at: nowIso() })
-        .eq('id', id)
-        .select('*')
-        .single(),
-    )
-    return { item: fromBookingRow(u.data) }
   }
 
   if (action === 'getContactConfig') {

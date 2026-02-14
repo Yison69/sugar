@@ -143,11 +143,11 @@ export default function AdminPackages() {
               const cleanedGroups = draft.optionGroups.map((g) => ({
                 ...g,
                 name: g.name.trim(),
-                items: g.items.map((it) => ({
+                items: g.items.map((it, idx) => ({
                   ...it,
                   name: it.name.trim(),
                   op: g.op,
-                  deltaPrice: Number(it.deltaPrice),
+                  deltaPrice: idx === 0 ? 0 : Number(it.deltaPrice),
                   assetUrls: (it.assetUrls || []).map((u) => String(u || '').trim()).filter(Boolean),
                 })),
               }))

@@ -1,7 +1,7 @@
 const { callMpApi } = require('../../utils/cloud')
 const { resolveTempUrls, isCloudFileId } = require('../../utils/media')
 
-const CATEGORIES = ['毕业照', '写真照', '婚纱照', '场地租赁']
+const CATEGORIES = ['毕业照', '写真照', '婚礼跟拍', '场地租赁']
 
 const pickHeight = (id) => {
   const s = String(id || '')

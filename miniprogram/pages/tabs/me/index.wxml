@@ -30,7 +30,7 @@
 
     <view class="grid2">
       <view class="tile" bindtap="onCommunity">
-        <view class="tileTitle">摄影圈</view>
+        <view class="tileTitle">糖画写真馆</view>
         <view class="tileSub">进入社区</view>
         <view class="pill">社区</view>
       </view>
@@ -42,10 +42,6 @@
     </view>
 
     <view class="actions">
-      <view class="action" bindtap="goBookings">
-        <view class="ico">⎘</view>
-        <view class="txt">我的预约</view>
-      </view>
       <view class="action" bindtap="onCrop">
         <view class="ico">▢</view>
         <view class="txt">照片裁剪</view>

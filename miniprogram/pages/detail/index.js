@@ -13,8 +13,7 @@ Page({
     swiperIndex: 0,
     previewUrls: [],
     thumbs: [],
-    selectedAssetUrls: [],
-    selectedAssets: []
+    groupImageUrlsById: {}
   },
   onLoad(query) {
     this.setData({ id: query.id || '', type: query.type || 'work' })
@@ -109,12 +108,35 @@ Page({
     if (!urls.length) return
     wx.previewImage({ current: media.url, urls })
   },
-  onPreviewOptionAsset(e) {
-    const url = e && e.currentTarget && e.currentTarget.dataset ? String(e.currentTarget.dataset.url || '') : ''
-    if (!url) return
-    const urls = (this.data.selectedAssetUrls || []).filter(Boolean)
-    if (!urls.length) return
-    wx.previewImage({ current: url, urls })
+  onTapOption(e) {
+    const groupId = e && e.currentTarget && e.currentTarget.dataset ? String(e.currentTarget.dataset.groupid || '') : ''
+    const optionId = e && e.currentTarget && e.currentTarget.dataset ? String(e.currentTarget.dataset.itemid || '') : ''
+    const item = this.data.item
+    if (!groupId || !optionId || !item || item.type !== 'package') return
+
+    const group = (item.optionGroups || []).find((g) => String(g.id) === groupId)
+    if (!group) return
+
+    let nextSelected
+    if (group.selectMode === 'single') {
+      nextSelected = { ...this.data.selected, [groupId]: optionId }
+    } else {
+      const prev = this.data.selected[groupId]
+      const arr = Array.isArray(prev) ? prev.map((x) => String(x)) : prev ? [String(prev)] : []
+      const has = arr.includes(optionId)
+      const nextArr = has ? arr.filter((x) => x !== optionId) : [...arr, optionId]
+      nextSelected = { ...this.data.selected, [groupId]: nextArr }
+    }
+
+    const optionGroups = (item.optionGroups || []).map((g) => {
+      if (String(g.id) !== groupId) return g
+      const sel = nextSelected[groupId]
+      const pickIds = Array.isArray(sel) ? sel : sel ? [sel] : []
+      const items = (g.items || []).map((it) => ({ ...it, checked: pickIds.includes(String(it.id)) }))
+      return { ...g, items }
+    })
+
+    this.setData({ item: { ...item, optionGroups }, selected: nextSelected }, () => this.recalc())
   },
   normalizeItem(raw) {
     const mediaUrls = raw.mediaUrls || raw.imageUrls || []
@@ -126,12 +148,18 @@ Page({
     })
 
     const optionGroups = (raw.optionGroups || []).map((g) => {
-      const items = (g.items || []).map((it) => {
-        const d = Number(it.deltaPrice || 0)
-        const deltaText = !d ? '¥ 0' : (d > 0 ? '+ ' : '- ') + '¥ ' + Math.abs(d)
-        return { ...it, deltaText, checked: false }
+      const selectMode = g.selectMode || (g.op === 'replace' ? 'single' : 'single')
+      const items = (g.items || []).map((it, idx) => {
+        const assetUrls = Array.isArray(it.assetUrls) ? it.assetUrls : []
+        const thumbUrl = assetUrls.length ? String(assetUrls[0] || '') : ''
+        const thumbLower = thumbUrl.toLowerCase()
+        const thumbKind = thumbLower.endsWith('.mp4') || thumbLower.endsWith('.mov') || thumbLower.endsWith('.webm') ? 'video' : 'image'
+
+        const d = idx === 0 ? 0 : Number(it.deltaPrice || 0)
+        const deltaText = d >= 0 ? `+¥${Math.abs(d)}` : `-¥${Math.abs(d)}`
+        return { ...it, deltaPrice: d, deltaText, checked: false, assetUrls, thumbUrl, thumbKind }
       })
-      return { ...g, items }
+      return { ...g, selectMode, items }
     })
 
     return { ...raw, mediaList, optionGroups }
@@ -139,10 +167,10 @@ Page({
   initDefaultSelection(item) {
     const selected = {}
     const optionGroups = (item.optionGroups || []).map((g) => {
-      if (g.required && g.selectMode === 'single' && (g.items || []).length) {
+      if ((g.items || []).length) {
         const first = g.items[0]
-        selected[g.id] = first.id
-        const items = (g.items || []).map((it) => ({ ...it, checked: it.id === first.id }))
+        selected[g.id] = g.selectMode === 'single' ? String(first.id) : [String(first.id)]
+        const items = (g.items || []).map((it) => ({ ...it, checked: String(it.id) === String(first.id) }))
         return { ...g, items }
       }
       return g
@@ -158,66 +186,31 @@ Page({
       })
       .catch(() => wx.showToast({ title: '操作失败', icon: 'none' }))
   },
-  onRadioChange(e) {
-    const groupId = e.currentTarget.dataset.groupid
-    const value = e.detail.value
-    const item = this.data.item
-    if (!item || item.type !== 'package') return
-
-    const optionGroups = (item.optionGroups || []).map((g) => {
-      if (g.id !== groupId) return g
-      const items = (g.items || []).map((it) => ({ ...it, checked: it.id === value }))
-      return { ...g, items }
-    })
-    const selected = { ...this.data.selected, [groupId]: value }
-    this.setData({ item: { ...item, optionGroups }, selected })
-    this.recalc()
-  },
-  onCheckboxChange(e) {
-    const groupId = e.currentTarget.dataset.groupid
-    const values = e.detail.value || []
-    const item = this.data.item
-    if (!item || item.type !== 'package') return
-
-    const optionGroups = (item.optionGroups || []).map((g) => {
-      if (g.id !== groupId) return g
-      const items = (g.items || []).map((it) => ({ ...it, checked: values.includes(it.id) }))
-      return { ...g, items }
-    })
-    const selected = { ...this.data.selected, [groupId]: values }
-    this.setData({ item: { ...item, optionGroups }, selected })
-    this.recalc()
-  },
   recalc() {
     const item = this.data.item
     if (!item || item.type !== 'package') {
-      this.setData({ price: { base: 0, delta: 0, total: 0, lines: [] }, selectedAssetUrls: [], selectedAssets: [] })
+      this.setData({ price: { base: 0, delta: 0, total: 0, lines: [] }, groupImageUrlsById: {} })
       return
     }
     const base = Number(item.basePrice || 0)
     const lines = []
     let delta = 0
-    const selectedAssetUrls = []
-    const selectedAssets = []
-    for (const g of item.optionGroups || []) {
+    const optionGroups = (item.optionGroups || []).map((g) => {
       const sel = this.data.selected[g.id]
       const pickIds = Array.isArray(sel) ? sel : sel ? [sel] : []
-      for (const pid of pickIds) {
-        const it = (g.items || []).find((x) => x.id === pid)
-        if (!it) continue
+      const selectedItems = (g.items || []).filter((it) => pickIds.includes(String(it.id)))
+
+      for (const it of selectedItems) {
         const d = Number(it.deltaPrice || 0)
         delta += d
         lines.push({ name: `${g.name}：${it.name}`, delta: d })
-        for (const u of it.assetUrls || []) {
-          const s = String(u || '').trim()
-          if (!s) continue
-          const lower = s.toLowerCase()
-          const kind = lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.webm') ? 'video' : 'image'
-          selectedAssets.push({ url: s, kind })
-          if (kind === 'image') selectedAssetUrls.push(s)
-        }
       }
-    }
-    this.setData({ price: { base, delta, total: base + delta, lines }, selectedAssetUrls, selectedAssets })
-  },
+      return g
+    })
+
+    this.setData({
+      item: { ...item, optionGroups },
+      price: { base, delta, total: base + delta, lines }
+    })
+  }
 })

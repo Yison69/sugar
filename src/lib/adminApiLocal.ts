@@ -1,4 +1,4 @@
-import type { Booking, BookingStatus, Package, Work } from '../../shared/types'
+import type { Package, Work } from '../../shared/types'
 function nanoid(size = 12) {
   const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
   let out = ''
@@ -14,7 +14,6 @@ export type LocalState = {
   contact?: ContactConfig
   works: Work[]
   packages: Package[]
-  bookings: Booking[]
 }
 
 const STORAGE_KEY = 'photographer_admin_local_v1'
@@ -23,7 +22,7 @@ const now = () => Date.now()
 
 function readState(): LocalState {
   const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return { works: [], packages: [], bookings: [] }
+  if (!raw) return { works: [], packages: [] }
   try {
     const parsed = JSON.parse(raw) as Partial<LocalState>
     return {
@@ -31,10 +30,9 @@ function readState(): LocalState {
       contact: parsed.contact,
       works: parsed.works ?? [],
       packages: parsed.packages ?? [],
-      bookings: parsed.bookings ?? [],
     }
   } catch {
-    return { works: [], packages: [], bookings: [] }
+    return { works: [], packages: [] }
   }
 }
 
@@ -77,7 +75,6 @@ export const adminApiLocal = {
       contact: payload.contact ?? s.contact,
       works: payload.works ?? s.works,
       packages: payload.packages ?? s.packages,
-      bookings: payload.bookings ?? s.bookings,
     })
     return { ok: true as const }
   },
@@ -165,23 +162,6 @@ export const adminApiLocal = {
     const s = readState()
     writeState({ ...s, packages: s.packages.filter((p) => p.id !== id) })
     return { ok: true as const }
-  },
-
-  listBookings: async (token: string) => {
-    requireAuthed(token)
-    return { items: readState().bookings.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)) }
-  },
-
-  updateBookingStatus: async (token: string, id: string, status: BookingStatus, adminNote?: string) => {
-    requireAuthed(token)
-    const s = readState()
-    const idx = s.bookings.findIndex((b) => b.id === id)
-    if (idx < 0) throw new Error('Not found')
-    const next: Booking = { ...s.bookings[idx], status, adminNote: adminNote ?? '', updatedAt: now() }
-    const bookings = s.bookings.slice()
-    bookings[idx] = next
-    writeState({ ...s, bookings })
-    return { item: next }
   },
 
   getContactConfig: async (token: string) => {

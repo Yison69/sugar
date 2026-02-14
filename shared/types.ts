@@ -50,30 +50,3 @@ export type Package = {
   createdAt: number
   updatedAt?: number
 }
-
-export type BookingStatus = '待确认' | '已确认' | '已完成' | '已取消'
-
-export type Booking = {
-  id: string
-  userOpenid: string
-  itemType: ItemType
-  itemId: string
-  itemTitleSnapshot: string
-  selectedOptionsSnapshot?: unknown
-  priceSnapshot?: {
-    base: number
-    delta: number
-    total: number
-    lines: { name: string; delta: number }[]
-  }
-  contactName: string
-  contactPhone: string
-  contactWechat: string
-  shootingType: string
-  scheduledAt: string
-  remark?: string
-  status: BookingStatus
-  adminNote?: string
-  createdAt: number
-  updatedAt?: number
-}

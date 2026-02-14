@@ -1,12 +1,11 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Camera, ClipboardList, Package as PackageIcon, LogOut, Settings } from 'lucide-react'
+import { Camera, Package as PackageIcon, LogOut, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAdminAuth } from '@/stores/adminAuth'
 
 const nav = [
   { to: '/admin/works', label: '作品', icon: Camera },
   { to: '/admin/packages', label: '套餐', icon: PackageIcon },
-  { to: '/admin/bookings', label: '预约', icon: ClipboardList },
   { to: '/admin/settings', label: '设置', icon: Settings },
 ]
 

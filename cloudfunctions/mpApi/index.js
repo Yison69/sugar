@@ -277,116 +277,6 @@ async function toggleLike({ targetId, targetType }) {
   return ok({ liked: true, likeCount: next })
 }
 
-async function createBooking(input) {
-  const openid = getOpenid()
-  if (!openid) throw new Error('未登录')
-
-  const payload = input && input.payload ? input.payload : input
-
-  const required = ['contactName', 'contactPhone', 'shootingType', 'scheduledAt']
-  for (const k of required) {
-    if (!payload || !payload[k]) throw new Error('请完善预约信息')
-  }
-
-  const itemType = payload.itemType || 'custom'
-  const itemId = payload.itemId || ''
-  const itemTitleSnapshot = payload.itemTitleSnapshot || payload.shootingType || '预约'
-
-  let computedSelected = payload.selectedOptionsSnapshot || null
-  let computedPrice = payload.priceSnapshot || null
-
-  if (itemType === 'package') {
-    if (!itemId) throw new Error('套餐不存在或已下架')
-    const pkgList =
-      (await requestSb(
-        'GET',
-        `/rest/v1/packages${qs({
-          select: 'base_price,option_groups,is_published',
-          id: `eq.${itemId}`,
-          is_published: 'eq.true',
-          limit: 1
-        })}`,
-      )) || []
-    const pkg = pkgList[0]
-    if (!pkg) throw new Error('套餐不存在或已下架')
-
-    const optionGroups = pkg.option_groups || []
-    const selected = computedSelected || {}
-    for (const g of optionGroups) {
-      if (!g || !g.required) continue
-      const v = selected[g.id]
-      const okSel = Array.isArray(v) ? v.length > 0 : !!v
-      if (!okSel) throw new Error(`请完成必选项：${g.name}`)
-    }
-
-    const base = Number(pkg.base_price || 0)
-    let delta = 0
-    const lines = []
-    for (const g of optionGroups) {
-      const v = selected[g.id]
-      const pickIds = Array.isArray(v) ? v : v ? [v] : []
-      for (const pid of pickIds) {
-        const it = (g.items || []).find((x) => x.id === pid)
-        if (!it) continue
-        const d = Number(it.deltaPrice || 0)
-        delta += d
-        lines.push({ name: `${g.name}：${it.name}`, delta: d })
-      }
-    }
-    computedSelected = selected
-    computedPrice = { base, delta, total: base + delta, lines }
-  }
-
-  const row = {
-    user_openid: openid,
-    item_type: itemType,
-    item_id: itemId,
-    item_title_snapshot: itemTitleSnapshot,
-    selected_options_snapshot: computedSelected,
-    price_snapshot: computedPrice,
-    contact_name: payload.contactName,
-    contact_phone: payload.contactPhone,
-    contact_wechat: payload.contactWechat || '',
-    shooting_type: payload.shootingType,
-    scheduled_at: payload.scheduledAt,
-    remark: payload.remark || '',
-    status: '待确认',
-    created_at: nowIso(),
-    updated_at: nowIso()
-  }
-
-  const ins = await requestSb('POST', `/rest/v1/bookings${qs({ select: 'id' })}`, row)
-  const first = Array.isArray(ins) ? ins[0] : null
-  if (!first || !first.id) throw new Error('提交失败')
-  return ok({ id: first.id })
-}
-
-async function getMyBookings() {
-  const openid = getOpenid()
-  if (!openid) return ok({ items: [] })
-  const res =
-    (await requestSb(
-      'GET',
-      `/rest/v1/bookings${qs({
-        select: 'id,item_type,item_id,item_title_snapshot,shooting_type,scheduled_at,status,created_at',
-        user_openid: `eq.${openid}`,
-        order: 'created_at.desc',
-        limit: 50
-      })}`,
-    )) || []
-  const items = (res || []).map((d) => ({
-    id: d.id,
-    itemType: d.item_type,
-    itemId: d.item_id,
-    itemTitleSnapshot: d.item_title_snapshot,
-    shootingType: d.shooting_type,
-    scheduledAt: d.scheduled_at,
-    status: d.status,
-    createdAt: d.created_at ? new Date(d.created_at).getTime() : Date.now()
-  }))
-  return ok({ items })
-}
-
 async function getContactConfig() {
   const list =
     (await requestSb('GET', `/rest/v1/app_config${qs({ select: 'value', key: 'eq.contact', limit: 1 })}`)) || []
@@ -405,8 +295,6 @@ exports.main = async (event) => {
   if (action === 'listItems') return listItems(data)
   if (action === 'getItemDetail') return getItemDetail(data)
   if (action === 'toggleLike') return toggleLike(data)
-  if (action === 'createBooking') return createBooking(data)
-  if (action === 'getMyBookings') return getMyBookings()
   if (action === 'getContactConfig') return getContactConfig()
 
   throw new Error('Unknown action')

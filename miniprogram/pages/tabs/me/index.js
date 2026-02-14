@@ -20,7 +20,7 @@ Page({
   },
   onShow() {
     const tab = this.getTabBar && this.getTabBar()
-    if (tab && tab.setData) tab.setData({ selected: 3 })
+    if (tab && tab.setData) tab.setData({ selected: 2 })
     this.loadContactConfig()
   },
   loadContactConfig() {
@@ -33,9 +33,6 @@ Page({
         this.setData({ wechatText, wechatQrUrl })
       })
       .catch(() => {})
-  },
-  goBookings() {
-    wx.switchTab({ url: '/pages/tabs/bookings/index' })
   },
   onLogin() {
     wx.showToast({ title: '暂未接入登录', icon: 'none' })

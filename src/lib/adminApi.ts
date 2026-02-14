@@ -1,4 +1,4 @@
-import type { Booking, BookingStatus, Package, Work } from '../../shared/types'
+import type { Package, Work } from '../../shared/types'
 import { useAdminAuth } from '@/stores/adminAuth'
 import { getCloudbaseApp } from '@/lib/cloudbase'
 import { adminApiLocal, type LocalState } from '@/lib/adminApiLocal'
@@ -95,11 +95,6 @@ async function callLocal<T>(action: string, data: unknown, token: string): Promi
     const id = String((data as { id?: unknown }).id || '')
     return (await adminApiLocal.deletePackage(token, id)) as unknown as RpcResult<T>
   }
-  if (action === 'listBookings') return (await adminApiLocal.listBookings(token)) as unknown as RpcResult<T>
-  if (action === 'updateBookingStatus') {
-    const d = data as { id: string; status: BookingStatus; adminNote?: string }
-    return (await adminApiLocal.updateBookingStatus(token, d.id, d.status, d.adminNote)) as unknown as RpcResult<T>
-  }
   if (action === 'getContactConfig') return (await adminApiLocal.getContactConfig(token)) as unknown as RpcResult<T>
   if (action === 'updateContactConfig') {
     const cfg = data as { wechatText: string; wechatQrUrl: string }
@@ -144,10 +139,6 @@ export const adminApi = {
     ensureOk(callAdmin<{ item: Package }>('upsertPackage', pkg)),
   deletePackage: (id: string) =>
     ensureOk(callAdmin<{ ok: true }>('deletePackage', { id })),
-
-  listBookings: () => ensureOk(callAdmin<{ items: Booking[] }>('listBookings')),
-  updateBookingStatus: (id: string, status: BookingStatus, adminNote?: string) =>
-    ensureOk(callAdmin<{ item: Booking }>('updateBookingStatus', { id, status, adminNote })),
 
   getContactConfig: () => ensureOk(callAdmin<ContactConfig>('getContactConfig')),
   updateContactConfig: (cfg: ContactConfig) =>
