@@ -53,6 +53,13 @@
           >
             对比
           </view>
+          <view
+            wx:if="{{item.type==='package'}}"
+            style="padding: 10rpx 16rpx; border-radius: 999rpx; border: 2rpx solid #e5e7eb; color:#111827; font-size: 24rpx;"
+            bindtap="openExportDetailMenu"
+          >
+            导出
+          </view>
           <view style="display:flex; align-items:center; gap: 10rpx;" bindtap="toggleLike">
             <text style="font-size: 34rpx; color: {{item.isLiked ? '#ef4444' : '#6b7280'}};">♥</text>
             <text style="font-size: 26rpx; color:#6b7280;">{{item.likeCount}}</text>
@@ -198,7 +205,10 @@
       >
         <view style="padding: 18rpx 18rpx; display:flex; align-items:center; justify-content:space-between; border-bottom: 1rpx solid #f3f4f6;">
           <view style="font-size: 30rpx; font-weight: 900;">套餐对比</view>
-          <view style="font-size: 26rpx; color:#6b7280;" bindtap="closeCompareTable">关闭</view>
+          <view style="display:flex; gap: 18rpx; align-items:center;">
+            <view style="font-size: 26rpx; color:#111827;" bindtap="openExportCompareMenu">导出</view>
+            <view style="font-size: 26rpx; color:#6b7280;" bindtap="closeCompareTable">关闭</view>
+          </view>
         </view>
 
         <scroll-view scroll-x="true" scroll-y="true" style="flex:1;">
@@ -224,3 +234,5 @@
     </view>
   </view>
 </view>
+
+<canvas type="2d" id="exportCanvas" style="position: fixed; left:-9999px; top:-9999px; width: 1px; height: 1px;"></canvas>
