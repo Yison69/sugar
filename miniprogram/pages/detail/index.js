@@ -13,7 +13,19 @@ Page({
     swiperIndex: 0,
     previewUrls: [],
     thumbs: [],
-    groupImageUrlsById: {}
+    groupImageUrlsById: {},
+
+    comparePickerOpen: false,
+    comparePickerLoading: false,
+    compareCandidates: [],
+    compareChosenIds: [],
+
+    compareTableOpen: false,
+    compareBuildLoading: false,
+    comparePackages: [],
+    compareRows: [],
+    compareColWidthRpx: 240,
+    compareMinWidthRpx: 480
   },
   onLoad(query) {
     this.setData({ id: query.id || '', type: query.type || 'work' })
@@ -161,6 +173,13 @@ Page({
     if (!url || !list.length) return
     wx.previewImage({ current: url, urls: list })
   },
+  formatQtyText(rawQty) {
+    const s = String(rawQty || '').trim()
+    if (!s) return ''
+    if (/^x\s*\d+$/i.test(s)) return `x${s.replace(/^x\s*/i, '')}`
+    if (/^\d+$/.test(s)) return `x${s}`
+    return s
+  },
   normalizeItem(raw) {
     const mediaUrls = raw.mediaUrls || raw.imageUrls || []
     const mediaList = (mediaUrls || []).map((url) => {
@@ -173,6 +192,7 @@ Page({
     const includedGroups = (raw.includedGroups || []).map((g) => {
       const items = (g.items || []).map((it) => {
         const assetUrls = Array.isArray(it.assetUrls) ? it.assetUrls : []
+        const qtyText = this.formatQtyText(it.qty)
         const imageUrls = assetUrls
           .map((u) => String(u || '').trim())
           .filter(Boolean)
@@ -184,7 +204,7 @@ Page({
         const thumbUrl = imageUrls[0] || first
         const thumbLower = thumbUrl.toLowerCase()
         const thumbKind = thumbLower.endsWith('.mp4') || thumbLower.endsWith('.mov') || thumbLower.endsWith('.webm') ? 'video' : 'image'
-        return { ...it, assetUrls, imageUrls, thumbUrl, thumbKind }
+        return { ...it, qtyText, assetUrls, imageUrls, thumbUrl, thumbKind }
       })
       return { ...g, items }
     })
@@ -193,6 +213,7 @@ Page({
       const selectMode = g.selectMode || (g.op === 'replace' ? 'single' : 'single')
       const items = (g.items || []).map((it, idx) => {
         const assetUrls = Array.isArray(it.assetUrls) ? it.assetUrls : []
+        const qtyText = this.formatQtyText(it.qty)
         const imageUrls = assetUrls
           .map((u) => String(u || '').trim())
           .filter(Boolean)
@@ -208,7 +229,7 @@ Page({
 
         const d = idx === 0 ? 0 : Number(it.deltaPrice || 0)
         const deltaText = d >= 0 ? `+¥${Math.abs(d)}` : `-¥${Math.abs(d)}`
-        return { ...it, deltaPrice: d, deltaText, checked: false, assetUrls, imageUrls, thumbUrl, thumbKind }
+        return { ...it, qtyText, deltaPrice: d, deltaText, checked: false, assetUrls, imageUrls, thumbUrl, thumbKind }
       })
       return { ...g, selectMode, items }
     })
@@ -236,6 +257,147 @@ Page({
         this.setData({ item: { ...this.data.item, isLiked: liked, likeCount } })
       })
       .catch(() => wx.showToast({ title: '操作失败', icon: 'none' }))
+  },
+  noop() {},
+  openComparePicker() {
+    const item = this.data.item
+    if (!item || item.type !== 'package') return
+
+    this.setData({ comparePickerOpen: true, comparePickerLoading: true, compareChosenIds: [] })
+    return callMpApi('listItems', { category: item.category, type: 'package' })
+      .then((res) => {
+        const { items } = res.result || {}
+        const candidates = (items || [])
+          .filter((x) => x && x.type === 'package' && String(x.id) !== String(item.id))
+          .map((x) => ({ id: x.id, title: x.title, _checked: false }))
+        this.setData({ compareCandidates: candidates })
+      })
+      .catch(() => {
+        wx.showToast({ title: '加载套餐失败', icon: 'none' })
+      })
+      .finally(() => {
+        this.setData({ comparePickerLoading: false })
+      })
+  },
+  closeComparePicker() {
+    this.setData({ comparePickerOpen: false })
+  },
+  toggleCompareCandidate(e) {
+    const id = e && e.currentTarget && e.currentTarget.dataset ? String(e.currentTarget.dataset.id || '') : ''
+    if (!id) return
+    const chosen = new Set((this.data.compareChosenIds || []).map((x) => String(x)))
+    if (chosen.has(id)) chosen.delete(id)
+    else chosen.add(id)
+    const compareChosenIds = Array.from(chosen)
+    const compareCandidates = (this.data.compareCandidates || []).map((c) => ({ ...c, _checked: chosen.has(String(c.id)) }))
+    this.setData({ compareChosenIds, compareCandidates })
+  },
+  confirmCompare() {
+    const item = this.data.item
+    if (!item || item.type !== 'package') return
+    const chosenIds = (this.data.compareChosenIds || []).map((x) => String(x)).filter(Boolean)
+    if (!chosenIds.length) {
+      wx.showToast({ title: '请选择至少 1 个套餐', icon: 'none' })
+      return
+    }
+
+    this.setData({ compareBuildLoading: true })
+    const ids = [String(item.id), ...chosenIds]
+    return Promise.all(
+      ids.map((id) =>
+        callMpApi('getItemDetail', { id, type: 'package' })
+          .then((res) => (res && res.result ? res.result.item : null))
+          .catch(() => null),
+      ),
+    )
+      .then((rawItems) => {
+        const pkgs = (rawItems || [])
+          .filter(Boolean)
+          .map((x) => this.normalizeItem(x))
+          .map((x) => ({
+            id: String(x.id),
+            title: String(x.title || ''),
+            includedGroups: x.includedGroups || [],
+            optionGroups: x.optionGroups || [],
+          }))
+
+        if (!pkgs.length) throw new Error('加载失败')
+
+        const rowMap = new Map()
+        const includeKeys = []
+        const optionKeys = []
+
+        const ensureRow = (key, label, kind) => {
+          if (!rowMap.has(key)) {
+            rowMap.set(key, { key, label, kind, cellsById: {} })
+            if (kind === 'include') includeKeys.push(key)
+            else optionKeys.push(key)
+          }
+          return rowMap.get(key)
+        }
+
+        const fmtQty = (rawQty) => this.formatQtyText(rawQty)
+        const withQty = (name, rawQty) => {
+          const n = String(name || '').trim()
+          if (!n) return ''
+          const qt = fmtQty(rawQty)
+          return qt ? `${n}${qt}` : n
+        }
+
+        for (const pkg of pkgs) {
+          for (const g of pkg.includedGroups || []) {
+            const gn = String(g && g.name ? g.name : '').trim() || '套餐内容'
+            for (const it of (g && g.items) || []) {
+              const iname = String(it && it.name ? it.name : '').trim()
+              if (!iname) continue
+              const label = `${gn}/${iname}`
+              const row = ensureRow(`inc:${gn}:${iname}`, label, 'include')
+              row.cellsById[pkg.id] = withQty(iname, it.qty)
+            }
+          }
+
+          for (const g of pkg.optionGroups || []) {
+            const gn = String(g && g.name ? g.name : '').trim()
+            if (!gn) continue
+            const first = g && Array.isArray(g.items) && g.items.length ? g.items[0] : null
+            if (!first) continue
+            const firstName = String(first.name || '').trim()
+            const value = firstName ? withQty(firstName, first.qty) : '-'
+            const label = `可选：${gn}`
+            const row = ensureRow(`opt:${gn}`, label, 'option')
+            row.cellsById[pkg.id] = value
+          }
+        }
+
+        const keys = [...includeKeys, ...optionKeys]
+        const compareRows = keys.map((k) => {
+          const row = rowMap.get(k)
+          return {
+            key: row.key,
+            label: row.label,
+            cells: pkgs.map((p) => (row.cellsById[p.id] ? String(row.cellsById[p.id]) : '-')),
+          }
+        })
+
+        const colWidth = Number(this.data.compareColWidthRpx || 240)
+        const compareMinWidthRpx = colWidth * (1 + pkgs.length)
+        this.setData({
+          comparePickerOpen: false,
+          compareTableOpen: true,
+          comparePackages: pkgs.map((p) => ({ id: p.id, title: p.title })),
+          compareRows,
+          compareMinWidthRpx,
+        })
+      })
+      .catch((e) => {
+        wx.showToast({ title: (e && e.message) || '生成对比失败', icon: 'none' })
+      })
+      .finally(() => {
+        this.setData({ compareBuildLoading: false })
+      })
+  },
+  closeCompareTable() {
+    this.setData({ compareTableOpen: false })
   },
   recalc() {
     const item = this.data.item

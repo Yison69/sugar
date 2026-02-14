@@ -32,7 +32,15 @@ export default function PackageOptionsEditor({
   }
 
   const addItem = (groupId: string) => {
-    const item: PackageOptionItem = { id: newId(), name: '选项', description: '', op: 'replace', deltaPrice: 0, assetUrls: [] }
+    const item: PackageOptionItem = {
+      id: newId(),
+      name: '选项',
+      description: '',
+      qty: '',
+      op: 'replace',
+      deltaPrice: 0,
+      assetUrls: [],
+    }
     onChange(
       groups.map((g) => (g.id === groupId ? { ...g, items: [...g.items, { ...item, op: g.op }] } : g)),
     )

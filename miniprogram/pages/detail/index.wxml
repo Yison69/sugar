@@ -45,9 +45,18 @@
             <view style="font-size: 22rpx; color:#6b7280; padding: 6rpx 10rpx; background:#f3f4f6; border-radius: 999rpx;">{{item.type==='package' ? '服务' : '作品'}}</view>
           </view>
         </view>
-        <view style="display:flex; align-items:center; gap: 10rpx;" bindtap="toggleLike">
-          <text style="font-size: 34rpx; color: {{item.isLiked ? '#ef4444' : '#6b7280'}};">♥</text>
-          <text style="font-size: 26rpx; color:#6b7280;">{{item.likeCount}}</text>
+        <view style="display:flex; align-items:center; gap: 12rpx;">
+          <view
+            wx:if="{{item.type==='package'}}"
+            style="padding: 10rpx 16rpx; border-radius: 999rpx; border: 2rpx solid #e5e7eb; color:#111827; font-size: 24rpx;"
+            bindtap="openComparePicker"
+          >
+            对比
+          </view>
+          <view style="display:flex; align-items:center; gap: 10rpx;" bindtap="toggleLike">
+            <text style="font-size: 34rpx; color: {{item.isLiked ? '#ef4444' : '#6b7280'}};">♥</text>
+            <text style="font-size: 26rpx; color:#6b7280;">{{item.likeCount}}</text>
+          </view>
         </view>
       </view>
 
@@ -88,7 +97,7 @@
                   <view wx:if="{{inc.thumbUrl && inc.thumbKind==='video'}}" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#fff; background: rgba(0,0,0,0.25); font-size: 24rpx;">视频</view>
                 </view>
                 <view style="padding: 14rpx 14rpx 12rpx; height: 140rpx; box-sizing: border-box;">
-                  <view style="font-size: 26rpx; font-weight: 800; color:#111827; overflow:hidden; text-overflow: ellipsis; white-space: nowrap;">{{inc.name}}</view>
+                  <view style="font-size: 26rpx; font-weight: 800; color:#111827; overflow:hidden; text-overflow: ellipsis; white-space: nowrap;">{{inc.name}}{{inc.qtyText}}</view>
                   <view wx:if="{{inc.description}}" style="margin-top: 6rpx; font-size: 22rpx; color:#6b7280; line-height: 30rpx; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;">{{inc.description}}</view>
                 </view>
               </view>
@@ -119,7 +128,7 @@
                   <view wx:if="{{opt.thumbUrl && opt.thumbKind==='video'}}" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#fff; background: rgba(0,0,0,0.25); font-size: 24rpx;">视频</view>
                 </view>
                 <view style="padding: 14rpx 14rpx 12rpx; height: 140rpx; box-sizing: border-box;">
-                  <view style="font-size: 26rpx; font-weight: 800; color:#111827; overflow:hidden; text-overflow: ellipsis; white-space: nowrap;">{{opt.name}}</view>
+                  <view style="font-size: 26rpx; font-weight: 800; color:#111827; overflow:hidden; text-overflow: ellipsis; white-space: nowrap;">{{opt.name}}{{opt.qtyText}}</view>
                   <view wx:if="{{opt.description}}" style="margin-top: 6rpx; font-size: 22rpx; color:#6b7280; line-height: 30rpx; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2;">{{opt.description}}</view>
                   <view style="margin-top: 8rpx; font-size: 24rpx; font-weight: 800; color:#ef4444;">{{opt.deltaText}}</view>
                 </view>
@@ -130,6 +139,88 @@
         </view>
       </block>
     </view>
-  </view>
 
+    <view
+      wx:if="{{comparePickerOpen}}"
+      style="position:fixed; left:0; top:0; right:0; bottom:0; background: rgba(0,0,0,0.45); z-index: 999;"
+      catchtap="closeComparePicker"
+    >
+      <view
+        style="position:absolute; left:0; right:0; bottom:0; background:#fff; border-top-left-radius: 24rpx; border-top-right-radius: 24rpx; padding: 20rpx 24rpx 24rpx;"
+        catchtap="noop"
+      >
+        <view style="display:flex; align-items:center; justify-content:space-between;">
+          <view style="font-size: 30rpx; font-weight: 900;">选择要对比的服务</view>
+          <view style="font-size: 26rpx; color:#6b7280;" bindtap="closeComparePicker">关闭</view>
+        </view>
+        <view style="margin-top: 10rpx; font-size: 24rpx; color:#6b7280;">可多选</view>
+
+        <view wx:if="{{comparePickerLoading}}" style="margin-top: 16rpx; color:#6b7280;">加载中…</view>
+        <scroll-view wx:else scroll-y="true" style="max-height: 900rpx; margin-top: 16rpx;">
+          <block wx:for="{{compareCandidates}}" wx:key="id" wx:for-item="c">
+            <view
+              style="display:flex; align-items:center; justify-content:space-between; padding: 16rpx 0; border-bottom: 1rpx solid #f3f4f6;"
+              bindtap="toggleCompareCandidate"
+              data-id="{{c.id}}"
+            >
+              <view style="font-size: 28rpx; color:#111827;">{{c.title}}</view>
+              <view style="width: 36rpx; height: 36rpx; border-radius: 10rpx; border: 2rpx solid {{c._checked ? '#111827' : '#d1d5db'}}; background: {{c._checked ? '#111827' : '#fff'}};"></view>
+            </view>
+          </block>
+          <view wx:if="{{!compareCandidates.length}}" style="padding: 20rpx 0; color:#6b7280;">暂无可对比的其它服务</view>
+        </scroll-view>
+
+        <view style="margin-top: 16rpx; display:flex; gap: 12rpx;">
+          <view
+            style="flex:1; text-align:center; padding: 22rpx 0; border-radius: 16rpx; background:#f3f4f6; color:#111827;"
+            bindtap="closeComparePicker"
+          >
+            取消
+          </view>
+          <view
+            style="flex:1; text-align:center; padding: 22rpx 0; border-radius: 16rpx; background:#111827; color:#fff;"
+            bindtap="confirmCompare"
+          >
+            {{compareBuildLoading ? '生成中…' : '开始对比'}}
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view
+      wx:if="{{compareTableOpen}}"
+      style="position:fixed; left:0; top:0; right:0; bottom:0; background: rgba(0,0,0,0.45); z-index: 1000;"
+      catchtap="closeCompareTable"
+    >
+      <view
+        style="position:absolute; left: 24rpx; right: 24rpx; top: 80rpx; bottom: 80rpx; background:#fff; border-radius: 24rpx; overflow:hidden; display:flex; flex-direction:column;"
+        catchtap="noop"
+      >
+        <view style="padding: 18rpx 18rpx; display:flex; align-items:center; justify-content:space-between; border-bottom: 1rpx solid #f3f4f6;">
+          <view style="font-size: 30rpx; font-weight: 900;">套餐对比</view>
+          <view style="font-size: 26rpx; color:#6b7280;" bindtap="closeCompareTable">关闭</view>
+        </view>
+
+        <scroll-view scroll-x="true" scroll-y="true" style="flex:1;">
+          <view style="min-width: {{compareMinWidthRpx}}rpx;">
+            <view style="display:flex; background:#f9fafb; border-bottom: 1rpx solid #f3f4f6;">
+              <view style="width: {{compareColWidthRpx}}rpx; padding: 16rpx 12rpx; font-size: 24rpx; font-weight: 800; color:#111827;">条目</view>
+              <block wx:for="{{comparePackages}}" wx:key="id" wx:for-item="p">
+                <view style="width: {{compareColWidthRpx}}rpx; padding: 16rpx 12rpx; font-size: 24rpx; font-weight: 800; color:#111827;">{{p.title}}</view>
+              </block>
+            </view>
+
+            <block wx:for="{{compareRows}}" wx:key="key" wx:for-item="r">
+              <view style="display:flex; border-bottom: 1rpx solid #f3f4f6;">
+                <view style="width: {{compareColWidthRpx}}rpx; padding: 14rpx 12rpx; font-size: 24rpx; color:#111827;">{{r.label}}</view>
+                <block wx:for="{{r.cells}}" wx:key="index" wx:for-item="cell">
+                  <view style="width: {{compareColWidthRpx}}rpx; padding: 14rpx 12rpx; font-size: 24rpx; color:#111827;">{{cell}}</view>
+                </block>
+              </view>
+            </block>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+  </view>
 </view>

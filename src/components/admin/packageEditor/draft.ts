@@ -31,6 +31,7 @@ export const toPackageDraft = (p?: Package): PackageDraft =>
           items: (g.items || []).map((it) => ({
             ...it,
             description: it.description ?? '',
+            qty: String(it.qty ?? ''),
             assetUrls: Array.isArray(it.assetUrls) ? it.assetUrls : [],
           })),
         })),
@@ -39,6 +40,7 @@ export const toPackageDraft = (p?: Package): PackageDraft =>
           items: (g.items || []).map((it) => ({
             ...it,
             description: it.description ?? '',
+            qty: String(it.qty ?? ''),
             assetUrls: Array.isArray(it.assetUrls) ? it.assetUrls : [],
           })),
         })),

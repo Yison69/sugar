@@ -20,7 +20,7 @@
     "list": [
       {
         "pagePath": "pages/tabs/home/index",
-        "text": "首页"
+          "text": "服务"
       },
       {
         "pagePath": "pages/tabs/works/index",

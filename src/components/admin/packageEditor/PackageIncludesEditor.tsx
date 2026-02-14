@@ -25,7 +25,7 @@ export default function PackageIncludesEditor({
   }
 
   const addItem = (groupId: string) => {
-    const item: PackageIncludeItem = { id: newId(), name: '条目' }
+    const item: PackageIncludeItem = { id: newId(), name: '条目', description: '', qty: '', assetUrls: [] }
     onChange(groups.map((g) => (g.id === groupId ? { ...g, items: [...g.items, item] } : g)))
   }
 
@@ -73,4 +73,3 @@ export default function PackageIncludesEditor({
     </div>
   )
 }
-

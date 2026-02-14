@@ -22,6 +22,10 @@ export default function OptionItemRow({
           <div className="mb-1 text-xs font-medium text-zinc-700">名称</div>
           <Input value={item.name} onChange={(e) => onChange({ name: e.target.value })} />
         </div>
+        <div>
+          <div className="mb-1 text-xs font-medium text-zinc-700">数量（可选）</div>
+          <Input value={item.qty ?? ''} onChange={(e) => onChange({ qty: e.target.value })} placeholder="如 x2 / 5min / 10张" />
+        </div>
         <div className="md:col-span-3">
           <div className="mb-1 text-xs font-medium text-zinc-700">说明（可选）</div>
           <Textarea value={item.description ?? ''} onChange={(e) => onChange({ description: e.target.value })} />

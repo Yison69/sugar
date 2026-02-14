@@ -20,6 +20,10 @@ export default function IncludeItemRow({
           <div className="mb-1 text-xs font-medium text-zinc-700">名称</div>
           <Input value={item.name} onChange={(e) => onChange({ name: e.target.value })} />
         </div>
+        <div style={{ width: 180 }}>
+          <div className="mb-1 text-xs font-medium text-zinc-700">数量（可选）</div>
+          <Input value={item.qty ?? ''} onChange={(e) => onChange({ qty: e.target.value })} placeholder="如 x2 / 5min / 10张" />
+        </div>
         <button type="button" className="rounded-md px-2 py-1 text-xs text-red-700 hover:bg-red-50" onClick={onDelete}>
           删除
         </button>
@@ -39,4 +43,3 @@ export default function IncludeItemRow({
     </div>
   )
 }
-

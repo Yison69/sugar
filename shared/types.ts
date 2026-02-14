@@ -8,6 +8,7 @@ export type PackageOptionItem = {
   id: string
   name: string
   description?: string
+  qty?: string
   op: PriceOp
   deltaPrice: number
   maxQty?: number
@@ -27,6 +28,7 @@ export type PackageIncludeItem = {
   id: string
   name: string
   description?: string
+  qty?: string
   assetUrls?: string[]
 }
 

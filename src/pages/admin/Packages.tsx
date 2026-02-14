@@ -148,6 +148,7 @@ export default function AdminPackages() {
                   ...it,
                   name: String(it.name || '').trim(),
                   description: String(it.description || '').trim() || undefined,
+                  qty: String(it.qty || '').trim() || undefined,
                   assetUrls: (it.assetUrls || []).map((u) => String(u || '').trim()).filter(Boolean),
                 })),
               }))
@@ -159,6 +160,7 @@ export default function AdminPackages() {
                   ...it,
                   name: it.name.trim(),
                   description: String(it.description || '').trim() || undefined,
+                  qty: String(it.qty || '').trim() || undefined,
                   op: g.op,
                   deltaPrice: idx === 0 ? 0 : Number(it.deltaPrice),
                   assetUrls: (it.assetUrls || []).map((u) => String(u || '').trim()).filter(Boolean),
