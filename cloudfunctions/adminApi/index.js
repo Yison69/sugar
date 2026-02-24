@@ -37,6 +37,8 @@ const readBodyJson = (event) => {
 }
 
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex')
+const MP_LOGIN_DOC_ID = 'miniProgramLogin'
+const hashMpPassword = (password) => `sha256$${sha256(`mp-login:${password}`)}`
 
 const randomToken = () => crypto.randomBytes(32).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
 
@@ -361,6 +363,36 @@ async function updateContactConfigRpc(payload) {
   return getContactConfigRpc()
 }
 
+async function getMiniProgramLoginConfigRpc() {
+  const res = await db.collection('config').doc(MP_LOGIN_DOC_ID).get().catch(() => null)
+  const d = res && res.data
+  const username = (d && d.username) || ''
+  const hasPassword = !!((d && d.passwordHash) || '')
+  return { username, hasPassword }
+}
+
+async function updateMiniProgramLoginConfigRpc(payload) {
+  if (!payload) return { error: '参数错误' }
+  const username = String(payload.username || '').trim()
+  const password = String(payload.password || '')
+  if (!username) return { error: '账号不能为空' }
+
+  const prevRes = await db.collection('config').doc(MP_LOGIN_DOC_ID).get().catch(() => null)
+  const prev = (prevRes && prevRes.data) || {}
+  const prevHash = String(prev.passwordHash || '')
+  const passwordHash = password ? hashMpPassword(password) : prevHash
+  if (!passwordHash) return { error: '请设置密码' }
+
+  await db.collection('config').doc(MP_LOGIN_DOC_ID).set({
+    data: {
+      username,
+      passwordHash,
+      updatedAt: now()
+    }
+  })
+  return getMiniProgramLoginConfigRpc()
+}
+
 async function handleRpc(event) {
   const action = event.action
   const data = event.data || {}
@@ -382,6 +414,8 @@ async function handleRpc(event) {
   if (action === 'updateBookingStatus') return updateBookingStatusRpc(data)
   if (action === 'getContactConfig') return getContactConfigRpc()
   if (action === 'updateContactConfig') return updateContactConfigRpc(data)
+  if (action === 'getMiniProgramLoginConfig') return getMiniProgramLoginConfigRpc()
+  if (action === 'updateMiniProgramLoginConfig') return updateMiniProgramLoginConfigRpc(data)
 
   return { error: 'Unknown action' }
 }

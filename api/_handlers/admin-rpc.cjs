@@ -1,10 +1,14 @@
 const bcrypt = require('bcryptjs')
+const crypto = require('crypto')
 const { readJsonBody, sendJson, methodNotAllowed } = require('../_lib/http.cjs')
 const { getSupabaseAdmin, throwIfError } = require('../_lib/supabase.cjs')
 const { required } = require('../_lib/env.cjs')
 const { signAdminToken, verifyAdminToken } = require('../_lib/auth.cjs')
 
 const nowIso = () => new Date().toISOString()
+const MP_LOGIN_KEY = 'mini_program_login'
+
+const hashMpPassword = (password) => `sha256$${crypto.createHash('sha256').update(`mp-login:${password}`).digest('hex')}`
 
 const requireAdmin = (token) => {
   if (!token) throw new Error('Unauthorized')
@@ -181,6 +185,40 @@ async function handleAdminAction(sb, action, data, token) {
         .single(),
     )
     return up.data.value
+  }
+
+  if (action === 'getMiniProgramLoginConfig') {
+    const r = await sb.from('app_config').select('value').eq('key', MP_LOGIN_KEY).limit(1)
+    const row = (r.data || [])[0]
+    const value = (row && row.value) || {}
+    return {
+      username: String(value.username || ''),
+      hasPassword: !!String(value.passwordHash || ''),
+    }
+  }
+  if (action === 'updateMiniProgramLoginConfig') {
+    const username = String((data && data.username) || '').trim()
+    const password = String((data && data.password) || '')
+    if (!username) return { error: '账号不能为空' }
+
+    const found = await sb.from('app_config').select('value').eq('key', MP_LOGIN_KEY).limit(1)
+    const prev = ((found.data || [])[0] && (found.data || [])[0].value) || {}
+    const prevHash = String(prev.passwordHash || '')
+    const passwordHash = password ? hashMpPassword(password) : prevHash
+    if (!passwordHash) return { error: '请设置密码' }
+
+    const up = throwIfError(
+      await sb
+        .from('app_config')
+        .upsert({ key: MP_LOGIN_KEY, value: { username, passwordHash }, updated_at: nowIso() })
+        .select('value')
+        .single(),
+    )
+    const value = up.data.value || {}
+    return {
+      username: String(value.username || ''),
+      hasPassword: !!String(value.passwordHash || ''),
+    }
   }
 
   return { error: 'Unknown action' }

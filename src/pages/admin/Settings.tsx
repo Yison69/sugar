@@ -15,15 +15,22 @@ export default function AdminSettings() {
   const [wechatQrUrl, setWechatQrUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [mpUsername, setMpUsername] = useState('')
+  const [mpPassword, setMpPassword] = useState('')
+  const [mpHasPassword, setMpHasPassword] = useState(false)
+  const [savingMp, setSavingMp] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const load = async () => {
     setError(null)
     setLoading(true)
     try {
-      const cfg = await adminApi.getContactConfig()
-      setWechatText(cfg.wechatText || '')
-      setWechatQrUrl(cfg.wechatQrUrl || '')
+      const [contactCfg, mpCfg] = await Promise.all([adminApi.getContactConfig(), adminApi.getMiniProgramLoginConfig()])
+      setWechatText(contactCfg.wechatText || '')
+      setWechatQrUrl(contactCfg.wechatQrUrl || '')
+      setMpUsername(mpCfg.username || '')
+      setMpHasPassword(!!mpCfg.hasPassword)
+      setMpPassword('')
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载失败')
     } finally {
@@ -37,7 +44,7 @@ export default function AdminSettings() {
 
   return (
     <div>
-      <PageHeader title="联系方式" />
+      <PageHeader title="系统设置" />
       {error ? <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
 
       {isLocal ? (
@@ -101,6 +108,7 @@ export default function AdminSettings() {
       ) : null}
 
       <div className="rounded-xl border border-zinc-200 p-4">
+        <div className="mb-3 text-sm font-medium text-zinc-900">联系方式</div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <div className="mb-1 text-xs font-medium text-zinc-700">微信号文字</div>
@@ -153,6 +161,54 @@ export default function AdminSettings() {
               {saving ? '保存中…' : '保存'}
             </Button>
           </div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-zinc-200 p-4">
+        <div className="text-sm font-medium text-zinc-900">小程序登录</div>
+        <div className="mt-1 text-xs text-zinc-500">小程序打开后会先显示登录页，用户输入此处配置的账号密码后才能进入。</div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <div className="mb-1 text-xs font-medium text-zinc-700">登录账号</div>
+            <Input value={mpUsername} onChange={(e) => setMpUsername(e.target.value)} placeholder="例如：studio_user" />
+          </div>
+          <div>
+            <div className="mb-1 text-xs font-medium text-zinc-700">登录密码</div>
+            <Input
+              type="password"
+              value={mpPassword}
+              onChange={(e) => setMpPassword(e.target.value)}
+              placeholder={mpHasPassword ? '留空表示不修改密码' : '请输入登录密码'}
+            />
+            <div className="mt-2 text-xs text-zinc-500">
+              {mpHasPassword ? '已配置密码；如需修改请输入新密码后保存。' : '当前未配置密码，首次保存必须填写密码。'}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between">
+          <div className="text-xs text-zinc-500">保存后，小程序端新登录会按最新账号密码校验。</div>
+          <Button
+            type="button"
+            disabled={loading || savingMp}
+            onClick={async () => {
+              setSavingMp(true)
+              try {
+                const next = await adminApi.updateMiniProgramLoginConfig({ username: mpUsername.trim(), password: mpPassword })
+                setMpUsername(next.username || mpUsername.trim())
+                setMpHasPassword(!!next.hasPassword)
+                setMpPassword('')
+                alert('已保存')
+              } catch (err) {
+                alert(err instanceof Error ? err.message : '保存失败')
+              } finally {
+                setSavingMp(false)
+              }
+            }}
+          >
+            {savingMp ? '保存中…' : '保存登录配置'}
+          </Button>
         </div>
       </div>
     </div>

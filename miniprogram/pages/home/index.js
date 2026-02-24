@@ -1,5 +1,6 @@
 const { callMpApi } = require('../../utils/cloud')
 const { resolveTempUrls, isCloudFileId } = require('../../utils/media')
+const { ensureMpLogin } = require('../../utils/auth')
 
 const CATEGORIES = ['毕业照', '写真照', '婚礼跟拍', '场地租赁']
 
@@ -58,6 +59,7 @@ Page({
     skRight: []
   },
   onLoad(options) {
+    if (!ensureMpLogin({ route: this.route, options })) return
     const rawCategory = options && options.category
     let category = rawCategory
     if (typeof category === 'string') {

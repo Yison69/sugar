@@ -1,0 +1,33 @@
+<view class="page">
+  <view class="card">
+    <view class="title">糖画写真馆</view>
+    <view class="sub">请输入后台配置的账号密码</view>
+
+    <view class="field">
+      <view class="label">账号</view>
+      <input
+        class="input"
+        placeholder="请输入账号"
+        value="{{username}}"
+        bindinput="onUsernameInput"
+      />
+    </view>
+
+    <view class="field">
+      <view class="label">密码</view>
+      <input
+        class="input"
+        placeholder="请输入密码"
+        password="true"
+        value="{{password}}"
+        bindinput="onPasswordInput"
+      />
+    </view>
+
+    <view wx:if="{{error}}" class="error">{{error}}</view>
+
+    <button class="submit" loading="{{loading}}" disabled="{{loading}}" bindtap="submit">
+      {{loading ? '登录中...' : '登录'}}
+    </button>
+  </view>
+</view>

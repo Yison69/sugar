@@ -7,6 +7,7 @@ import { createAdminApiHttp } from '@/lib/adminApiHttp'
 
 export type AdminLoginResponse = { token: string }
 export type ContactConfig = { wechatText: string; wechatQrUrl: string }
+export type MiniProgramLoginConfig = { username: string; hasPassword: boolean }
 
 type RpcResult<T> = T & { error?: string }
 
@@ -100,6 +101,11 @@ async function callLocal<T>(action: string, data: unknown, token: string): Promi
     const cfg = data as { wechatText: string; wechatQrUrl: string }
     return (await adminApiLocal.updateContactConfig(token, cfg)) as unknown as RpcResult<T>
   }
+  if (action === 'getMiniProgramLoginConfig') return (await adminApiLocal.getMiniProgramLoginConfig(token)) as unknown as RpcResult<T>
+  if (action === 'updateMiniProgramLoginConfig') {
+    const cfg = data as { username: string; password: string }
+    return (await adminApiLocal.updateMiniProgramLoginConfig(token, cfg)) as unknown as RpcResult<T>
+  }
   if (action === 'exportAll') return (await adminApiLocal.exportAll(token)) as unknown as RpcResult<T>
   if (action === 'importAll') {
     const payload = data as Partial<LocalState>
@@ -143,4 +149,7 @@ export const adminApi = {
   getContactConfig: () => ensureOk(callAdmin<ContactConfig>('getContactConfig')),
   updateContactConfig: (cfg: ContactConfig) =>
     ensureOk(callAdmin<ContactConfig>('updateContactConfig', cfg)),
+  getMiniProgramLoginConfig: () => ensureOk(callAdmin<MiniProgramLoginConfig>('getMiniProgramLoginConfig')),
+  updateMiniProgramLoginConfig: (cfg: { username: string; password: string }) =>
+    ensureOk(callAdmin<MiniProgramLoginConfig>('updateMiniProgramLoginConfig', cfg)),
 }

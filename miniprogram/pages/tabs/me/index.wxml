@@ -3,7 +3,7 @@
     <view class="heroBg" />
     <view class="heroInner">
       <view class="avatar">S</view>
-      <view class="heroTitle" bindtap="onLogin">登录/注册</view>
+      <view class="heroTitle" bindtap="onLogin">{{loginName}}</view>
       <view class="heroSub">生活需要仪式感</view>
     </view>
   </view>

@@ -1,4 +1,5 @@
 const cloud = require('wx-server-sdk')
+const crypto = require('crypto')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
@@ -90,6 +91,15 @@ const qs = (params) => {
 const ok = (data) => data
 
 const nowIso = () => new Date().toISOString()
+const MP_LOGIN_KEY = 'mini_program_login'
+
+const hashMpPassword = (password) => `sha256$${crypto.createHash('sha256').update(`mp-login:${password}`).digest('hex')}`
+const verifyMpPassword = (password, storedHash) => {
+  const raw = String(storedHash || '').trim()
+  if (!raw) return false
+  if (raw.startsWith('sha256$')) return hashMpPassword(password) === raw
+  return raw === password
+}
 
 const getOpenid = () => {
   const ctx = cloud.getWXContext()
@@ -285,6 +295,21 @@ async function getContactConfig() {
   return ok({ wechatText: String(v.wechatText || ''), wechatQrUrl: String(v.wechatQrUrl || '') })
 }
 
+async function passwordLogin({ username, password }) {
+  const uname = String(username || '').trim()
+  const pwd = String(password || '')
+  if (!uname || !pwd) return { error: '请输入账号和密码' }
+
+  const list =
+    (await requestSb('GET', `/rest/v1/app_config${qs({ select: 'value', key: `eq.${MP_LOGIN_KEY}`, limit: 1 })}`)) || []
+  const v = (list[0] && list[0].value) || {}
+  const expectedUser = String(v.username || '').trim()
+  const expectedHash = String(v.passwordHash || '')
+  if (!expectedUser || !expectedHash) return { error: '后台未配置小程序登录账号' }
+  if (uname !== expectedUser || !verifyMpPassword(pwd, expectedHash)) return { error: '账号或密码错误' }
+  return { ok: true, username: expectedUser }
+}
+
 exports.main = async (event) => {
   const action = event.action
   const data = event.data || {}
@@ -297,6 +322,7 @@ exports.main = async (event) => {
   if (action === 'getItemDetail') return getItemDetail(data)
   if (action === 'toggleLike') return toggleLike(data)
   if (action === 'getContactConfig') return getContactConfig()
+  if (action === 'passwordLogin') return passwordLogin(data)
 
   throw new Error('Unknown action')
 }

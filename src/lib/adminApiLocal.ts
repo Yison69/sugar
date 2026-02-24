@@ -8,10 +8,12 @@ function nanoid(size = 12) {
 
 export type AdminLoginResponse = { token: string }
 export type ContactConfig = { wechatText: string; wechatQrUrl: string }
+export type MiniProgramLoginConfig = { username: string; hasPassword: boolean }
 
 export type LocalState = {
   adminUser?: { username: string; password: string }
   contact?: ContactConfig
+  miniProgramLogin?: { username: string; password: string }
   works: Work[]
   packages: Package[]
 }
@@ -28,6 +30,7 @@ function readState(): LocalState {
     return {
       adminUser: parsed.adminUser,
       contact: parsed.contact,
+      miniProgramLogin: parsed.miniProgramLogin,
       works: parsed.works ?? [],
       packages: parsed.packages ?? [],
     }
@@ -73,6 +76,7 @@ export const adminApiLocal = {
     writeState({
       adminUser: s.adminUser,
       contact: payload.contact ?? s.contact,
+      miniProgramLogin: payload.miniProgramLogin ?? s.miniProgramLogin,
       works: payload.works ?? s.works,
       packages: payload.packages ?? s.packages,
     })
@@ -176,5 +180,32 @@ export const adminApiLocal = {
     const s = readState()
     writeState({ ...s, contact: cfg })
     return cfg
+  },
+
+  getMiniProgramLoginConfig: async (token: string): Promise<MiniProgramLoginConfig> => {
+    requireAuthed(token)
+    const s = readState()
+    return {
+      username: s.miniProgramLogin?.username ?? '',
+      hasPassword: !!(s.miniProgramLogin?.password ?? ''),
+    }
+  },
+
+  updateMiniProgramLoginConfig: async (token: string, cfg: { username: string; password: string }): Promise<MiniProgramLoginConfig> => {
+    requireAuthed(token)
+    const s = readState()
+    const username = String(cfg.username || '').trim()
+    const password = String(cfg.password || '')
+    if (!username) throw new Error('账号不能为空')
+
+    const prevPassword = s.miniProgramLogin?.password ?? ''
+    const nextPassword = password || prevPassword
+    if (!nextPassword) throw new Error('请设置密码')
+
+    writeState({
+      ...s,
+      miniProgramLogin: { username, password: nextPassword },
+    })
+    return { username, hasPassword: true }
   },
 }

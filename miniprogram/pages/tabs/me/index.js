@@ -1,4 +1,5 @@
 const { callMpApi } = require('../../../utils/cloud')
+const { ensureMpLogin, getMpLoginUser, clearMpLoggedIn } = require('../../../utils/auth')
 
 const isCloudFileId = (v) => typeof v === 'string' && v.startsWith('cloud://')
 
@@ -15,12 +16,15 @@ async function toTempUrl(v) {
 
 Page({
   data: {
+    loginName: '',
     wechatText: '',
     wechatQrUrl: ''
   },
   onShow() {
+    if (!ensureMpLogin(this)) return
     const tab = this.getTabBar && this.getTabBar()
     if (tab && tab.setData) tab.setData({ selected: 2 })
+    this.setData({ loginName: getMpLoginUser() || '已登录用户' })
     this.loadContactConfig()
   },
   loadContactConfig() {
@@ -35,7 +39,14 @@ Page({
       .catch(() => {})
   },
   onLogin() {
-    wx.showToast({ title: '暂未接入登录', icon: 'none' })
+    wx.showActionSheet({
+      itemList: ['退出登录'],
+      success: (r) => {
+        if (r.tapIndex !== 0) return
+        clearMpLoggedIn()
+        wx.reLaunch({ url: '/pages/login/index' })
+      }
+    })
   },
   onCommunity() {
     wx.showToast({ title: '敬请期待', icon: 'none' })

@@ -1,3 +1,5 @@
+const { ensureMpLogin } = require('../../../utils/auth')
+
 const CATEGORIES = ['毕业照', '写真照', '婚礼跟拍', '场地租赁']
 
 Page({
@@ -5,6 +7,7 @@ Page({
     categories: CATEGORIES
   },
   onShow() {
+    if (!ensureMpLogin(this)) return
     const tab = this.getTabBar && this.getTabBar()
     if (tab && tab.setData) tab.setData({ selected: 0 })
   },
@@ -15,4 +18,3 @@ Page({
     })
   }
 })
-

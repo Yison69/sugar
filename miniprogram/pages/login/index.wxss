@@ -1,0 +1,66 @@
+.page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  padding: 80rpx 28rpx;
+  box-sizing: border-box;
+}
+
+.card {
+  margin-top: 120rpx;
+  border-radius: 24rpx;
+  background: #ffffff;
+  padding: 40rpx 28rpx;
+  box-shadow: 0 16rpx 40rpx rgba(17, 24, 39, 0.08);
+}
+
+.title {
+  font-size: 42rpx;
+  color: #111827;
+  font-weight: 700;
+}
+
+.sub {
+  margin-top: 8rpx;
+  color: #6b7280;
+  font-size: 24rpx;
+}
+
+.field {
+  margin-top: 28rpx;
+}
+
+.label {
+  margin-bottom: 10rpx;
+  color: #374151;
+  font-size: 24rpx;
+}
+
+.input {
+  width: 100%;
+  height: 84rpx;
+  border: 1rpx solid #d1d5db;
+  border-radius: 12rpx;
+  padding: 0 22rpx;
+  box-sizing: border-box;
+  font-size: 28rpx;
+  color: #111827;
+  background: #ffffff;
+}
+
+.error {
+  margin-top: 16rpx;
+  color: #dc2626;
+  font-size: 24rpx;
+}
+
+.submit {
+  margin-top: 30rpx;
+  width: 100%;
+  height: 84rpx;
+  line-height: 84rpx;
+  border: 0;
+  border-radius: 12rpx;
+  color: #ffffff;
+  font-size: 30rpx;
+  background: #111827;
+}

@@ -1,9 +1,19 @@
+const crypto = require('crypto')
 const { readJsonBody, sendJson, methodNotAllowed } = require('../_lib/http.cjs')
 const { getSupabaseAdmin, throwIfError } = require('../_lib/supabase.cjs')
 
 const ok = (res, data) => sendJson(res, 200, data)
 
 const nowIso = () => new Date().toISOString()
+const MP_LOGIN_KEY = 'mini_program_login'
+
+const hashMpPassword = (password) => `sha256$${crypto.createHash('sha256').update(`mp-login:${password}`).digest('hex')}`
+const verifyMpPassword = (password, storedHash) => {
+  const raw = String(storedHash || '').trim()
+  if (!raw) return false
+  if (raw.startsWith('sha256$')) return hashMpPassword(password) === raw
+  return raw === password
+}
 
 const requireUserId = (body) => {
   const userId = String((body && body.userId) || '').trim()
@@ -168,6 +178,21 @@ async function getContactConfig(sb) {
   return r.data.value || { wechatText: '', wechatQrUrl: '' }
 }
 
+async function passwordLogin(sb, body) {
+  const username = String((body && body.username) || '').trim()
+  const password = String((body && body.password) || '')
+  if (!username || !password) return { error: '请输入账号和密码' }
+
+  const r = await sb.from('app_config').select('value').eq('key', MP_LOGIN_KEY).limit(1)
+  const row = (r.data || [])[0]
+  const value = (row && row.value) || {}
+  const expectedUser = String(value.username || '').trim()
+  const expectedHash = String(value.passwordHash || '')
+  if (!expectedUser || !expectedHash) return { error: '后台未配置小程序登录账号' }
+  if (username !== expectedUser || !verifyMpPassword(password, expectedHash)) return { error: '账号或密码错误' }
+  return { ok: true, username: expectedUser }
+}
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return methodNotAllowed(res)
   const body = await readJsonBody(req)
@@ -180,6 +205,7 @@ module.exports = async (req, res) => {
     if (action === 'getItemDetail') return ok(res, await getItemDetail(sb, body.data || body))
     if (action === 'toggleLike') return ok(res, await toggleLike(sb, body.data || body))
     if (action === 'getContactConfig') return ok(res, await getContactConfig(sb))
+    if (action === 'passwordLogin') return ok(res, await passwordLogin(sb, body.data || body))
     return ok(res, { error: 'Unknown action' })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Server error'

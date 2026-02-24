@@ -2,6 +2,7 @@ import type { Package, Work } from '../../shared/types'
 
 type AdminLoginResponse = { token: string }
 type ContactConfig = { wechatText: string; wechatQrUrl: string }
+type MiniProgramLoginConfig = { username: string; hasPassword: boolean }
 
 function joinUrl(base: string, path: string) {
   const b = base.replace(/\/+$/, '')
@@ -92,6 +93,11 @@ export function createAdminApiHttp(base: string) {
     getContactConfig: (token: string) => request<ContactConfig>(base, '/api/admin/rpc', { action: 'getContactConfig', data: {}, token }),
     updateContactConfig: (token: string, cfg: ContactConfig) =>
       request<ContactConfig>(base, '/api/admin/rpc', { action: 'updateContactConfig', data: cfg, token }),
+
+    getMiniProgramLoginConfig: (token: string) =>
+      request<MiniProgramLoginConfig>(base, '/api/admin/rpc', { action: 'getMiniProgramLoginConfig', data: {}, token }),
+    updateMiniProgramLoginConfig: (token: string, cfg: { username: string; password: string }) =>
+      request<MiniProgramLoginConfig>(base, '/api/admin/rpc', { action: 'updateMiniProgramLoginConfig', data: cfg, token }),
   }
 }
 

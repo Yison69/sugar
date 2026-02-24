@@ -1,5 +1,6 @@
 const { callMpApi } = require('../../utils/cloud')
 const { resolveTempUrls, isCloudFileId } = require('../../utils/media')
+const { ensureMpLogin } = require('../../utils/auth')
 
 Page({
   data: {
@@ -28,6 +29,7 @@ Page({
     compareMinWidthRpx: 480
   },
   onLoad(query) {
+    if (!ensureMpLogin({ route: this.route, options: query })) return
     this.setData({ id: query.id || '', type: query.type || 'work' })
     try {
       const info = wx.getSystemInfoSync()
